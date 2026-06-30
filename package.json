@@ -1,0 +1,17 @@
+{
+  "name": "talkto-mabel",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev:server": "node server/index.js",
+    "dev:client": "npm run dev --prefix client",
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\""
+  },
+  "dependencies": {
+    "concurrently": "^8.2.2",
+    "cors": "^2.8.5",
+    "dotenv": "^17.4.2",
+    "express": "^4.18.2",
+    "openai": "^4.50.0"
+  }
+}
