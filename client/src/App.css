@@ -579,3 +579,25 @@ body {
 .distress-skip:hover {
   color: #1f2c34;
 }
+
+.bubble.hypno-offer {
+  background: #f0f2f5;
+  border-top-left-radius: 0;
+  padding: 10px 12px;
+}
+
+.hypno-start-btn {
+  background: #00a884;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  width: 100%;
+}
+
+.hypno-start-btn:hover {
+  background: #017561;
+}

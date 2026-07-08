@@ -4,7 +4,7 @@ import InputBar from "./InputBar";
 import DistressScale from "./DistressScale";
 import { speak, setMuted, isMuted, stopSpeaking, setOnStateChange } from "../utils/tts";
 
-export default function ChatWindow({ messages, isLoading, onSend, onLock, onWipe, showDistressScale, onDistressSelect, onDistressClose, prefillText, therapyMode, eftAutoPlay, eftPaused, onToggleEftPause }) {
+export default function ChatWindow({ messages, isLoading, onSend, onLock, onWipe, showDistressScale, onDistressSelect, onDistressClose, prefillText, therapyMode, eftAutoPlay, eftPaused, onToggleEftPause, showHypnoOffer, onStartHypno, hypnoPlaying, hypnoPaused, onToggleHypnoPause }) {
   const messagesEndRef = useRef(null);
   const lastSpokenIndex = useRef(-1);
   const [muted, setMutedState] = useState(isMuted());
@@ -63,6 +63,9 @@ export default function ChatWindow({ messages, isLoading, onSend, onLock, onWipe
           {eftAutoPlay && (
             <button className="header-btn" onClick={onToggleEftPause} title={eftPaused ? "Resume EFT" : "Pause EFT"}>{eftPaused ? "▶️" : "⏸️"}</button>
           )}
+          {hypnoPlaying && (
+            <button className="header-btn" onClick={onToggleHypnoPause} title={hypnoPaused ? "Resume relaxation" : "Pause relaxation"}>{hypnoPaused ? "▶️" : "⏸️"}</button>
+          )}
           <button className="header-btn" onClick={onLock} title="Lock session">🔒</button>
           <button className="header-btn" onClick={onWipe} title="Wipe all data">🗑️</button>
         </div>
@@ -83,6 +86,15 @@ export default function ChatWindow({ messages, isLoading, onSend, onLock, onWipe
         )}
         {showDistressScale && (
           <DistressScale onSelect={onDistressSelect} onClose={onDistressClose} />
+        )}
+        {showHypnoOffer && !hypnoPlaying && (
+          <div className="message bot">
+            <div className="bubble hypno-offer">
+              <button className="hypno-start-btn" onClick={onStartHypno}>
+                ▶ Begin relaxation
+              </button>
+            </div>
+          </div>
         )}
         <div ref={messagesEndRef} />
       </div>

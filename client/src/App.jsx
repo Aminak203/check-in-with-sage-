@@ -25,9 +25,18 @@ export default function App() {
   const [therapyMode, setTherapyMode] = useState(false);
   const [eftAutoPlay, setEftAutoPlay] = useState(false);
   const [eftPaused, setEftPaused] = useState(false);
+  // Hypnotherapy / relaxation runner state
+  const [showHypnoOffer, setShowHypnoOffer] = useState(false);
+  const [hypnoScript, setHypnoScript] = useState(null);
+  const [hypnoStep, setHypnoStep] = useState(0);
+  const [hypnoPlaying, setHypnoPlaying] = useState(false);
+  const [hypnoPaused, setHypnoPaused] = useState(false);
   const timerRef = useRef(null);
   const eftTimerRef = useRef(null);
   const eftAutoPlayRef = useRef(false);
+  const hypnoTimerRef = useRef(null);
+  const hypnoPlayingRef = useRef(false);
+  const deliveredStepRef = useRef(-1);
 
   const resetTimer = useCallback(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
@@ -144,6 +153,93 @@ export default function App() {
     messagesRef.current = messages;
   }, [messages]);
 
+  const appendAssistant = useCallback((content) => {
+    const msg = { role: "assistant", content };
+    const next = [...messagesRef.current, msg];
+    setMessages(next);
+    messagesRef.current = next;
+  }, []);
+
+  const stopHypno = useCallback(() => {
+    if (hypnoTimerRef.current) clearTimeout(hypnoTimerRef.current);
+    hypnoTimerRef.current = null;
+    hypnoPlayingRef.current = false;
+    deliveredStepRef.current = -1;
+    setHypnoPlaying(false);
+    setHypnoPaused(false);
+    setHypnoScript(null);
+    setHypnoStep(0);
+    setTherapyMode(false);
+  }, []);
+
+  // Ask the server to pick the best-fitting script for the current state, then
+  // start the deterministic runner. The LLM only chooses; playback is scripted.
+  const startHypno = useCallback(async () => {
+    setShowHypnoOffer(false);
+    if (eftAutoPlayRef.current) stopEftAutoPlay();
+    setIsLoading(true);
+    try {
+      const apiMessages = messagesRef.current.filter((m) => !m.isGreeting);
+      const res = await fetch("http://localhost:3001/api/hypno/select", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: apiMessages }),
+      });
+      const data = await res.json();
+      const script = data.script;
+      if (!script || !Array.isArray(script.steps) || script.steps.length === 0) {
+        appendAssistant("Let's just take a few slow breaths together instead. Breathe in… and out.");
+        return;
+      }
+      appendAssistant(`Let's begin the ${script.name} exercise. Get comfortable, and just follow along with me.`);
+      deliveredStepRef.current = -1;
+      setHypnoScript(script);
+      setHypnoStep(0);
+      setTherapyMode(true);
+      hypnoPlayingRef.current = true;
+      setHypnoPaused(false);
+      setHypnoPlaying(true);
+    } catch (err) {
+      console.error("Failed to start relaxation:", err);
+      appendAssistant("I couldn't start the relaxation exercise just now. We can try again in a moment.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [appendAssistant, stopEftAutoPlay]);
+
+  const toggleHypnoPause = () => {
+    if (!hypnoPlayingRef.current) return;
+    setHypnoPaused((prev) => !prev);
+  };
+
+  // Deterministic playback: deliver the current step (spoken via ChatWindow's
+  // auto-speak), then advance after that step's pause. Re-runs on step change.
+  useEffect(() => {
+    if (!hypnoPlaying || hypnoPaused || !hypnoScript) return;
+
+    const steps = hypnoScript.steps;
+    if (hypnoStep >= steps.length) {
+      appendAssistant("That completes the exercise. Take a moment to notice how you feel. Remember, I'm not a substitute for professional care — but I'm here whenever you need me.");
+      stopHypno();
+      return;
+    }
+
+    // Deliver each step exactly once (guards against pause/resume re-delivery).
+    if (deliveredStepRef.current !== hypnoStep) {
+      appendAssistant(steps[hypnoStep].text);
+      deliveredStepRef.current = hypnoStep;
+    }
+
+    const pause = steps[hypnoStep].pauseMs || 12000;
+    hypnoTimerRef.current = setTimeout(() => {
+      setHypnoStep((s) => s + 1);
+    }, pause);
+
+    return () => {
+      if (hypnoTimerRef.current) clearTimeout(hypnoTimerRef.current);
+    };
+  }, [hypnoPlaying, hypnoPaused, hypnoStep, hypnoScript, appendAssistant, stopHypno]);
+
   const sendMessage = useCallback(async (text) => {
     setPrefillText(null);
     if (!text.trim()) return;
@@ -151,10 +247,18 @@ export default function App() {
     // Hide the distress scale as soon as the user sends anything
     setShowDistressScale(false);
 
+    // A fresh user message supersedes any pending relaxation offer
+    setShowHypnoOffer(false);
+
     // If user types manually during EFT auto-play, break out
     if (eftAutoPlayRef.current) {
       stopEftTimer();
       stopEftAutoPlay();
+    }
+
+    // If user types during a relaxation session, break out of it
+    if (hypnoPlayingRef.current) {
+      stopHypno();
     }
 
     const userMsg = { role: "user", content: text };
@@ -186,6 +290,11 @@ export default function App() {
         setTimeout(() => setShowDistressScale(true), 1000);
       }
 
+      // Mabel offered a guided relaxation — surface the "Begin" affordance
+      if (data.offerHypno && !data.crisis) {
+        setShowHypnoOffer(true);
+      }
+
       const inTherapy = !!data.therapyMode;
       setTherapyMode(inTherapy);
 
@@ -213,7 +322,7 @@ export default function App() {
     } finally {
       setIsLoading(false);
     }
-  }, [stopEftTimer, saveSession]);
+  }, [stopEftTimer, saveSession, stopHypno]);
 
   const handleLock = async () => {
     const apiMessages = messagesRef.current.filter((m) => !m.isGreeting);
@@ -261,6 +370,11 @@ export default function App() {
         eftAutoPlay={eftAutoPlay}
         eftPaused={eftPaused}
         onToggleEftPause={toggleEftPause}
+        showHypnoOffer={showHypnoOffer}
+        onStartHypno={startHypno}
+        hypnoPlaying={hypnoPlaying}
+        hypnoPaused={hypnoPaused}
+        onToggleHypnoPause={toggleHypnoPause}
       />
       <CrisisOverlay
         isOpen={showCrisis}

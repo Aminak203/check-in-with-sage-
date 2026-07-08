@@ -81,4 +81,21 @@ function detectTherapyMode(text) {
   return therapyKeywords.some((keyword) => lower.includes(keyword));
 }
 
-module.exports = { detectCrisis, detectRatingRequest, detectTherapyMode };
+// Detects when Mabel is OFFERING a guided relaxation / hypnotherapy session
+// (as opposed to EFT tapping). When matched, the client surfaces a "Begin"
+// button; tapping it triggers AI script selection + the deterministic runner.
+// Kept deliberately specific so it fires on offers, not general supportive chat.
+const hypnoOfferPatterns = [
+  /relaxation (exercise|session|technique)/i,
+  /breathing exercise/i,
+  /guided (relaxation|breathing|visuali[sz]ation|meditation)/i,
+  /hypnotherapy/i,
+  /(would you like|shall we|want to|do you want).{0,40}(relax|breathe|breathing|calm|unwind|visuali[sz]|safe place|body scan)/i,
+  /(try|do|start|begin).{0,20}(relaxation|breathing exercise|body scan|visuali[sz]ation)/i,
+];
+
+function detectHypnoOffer(text) {
+  return hypnoOfferPatterns.some((pattern) => pattern.test(text));
+}
+
+module.exports = { detectCrisis, detectRatingRequest, detectTherapyMode, detectHypnoOffer };

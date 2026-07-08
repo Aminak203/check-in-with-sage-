@@ -61,4 +61,17 @@ async function chatWithMabel(messages) {
   return stripReasoning(response.choices[0].message.content);
 }
 
-module.exports = { chatWithMabel };
+// Generic completion helper for non-conversational tasks (e.g. script selection).
+// Reuses the same client/model as Mabel but with caller-supplied messages and limits.
+async function complete(messages, { temperature = 0.2, maxTokens = 256 } = {}) {
+  const response = await openai.chat.completions.create({
+    model: process.env.OPENAI_MODEL || "gemma-4-31b-it",
+    messages,
+    temperature,
+    max_tokens: maxTokens,
+  });
+
+  return stripReasoning(response.choices[0].message.content);
+}
+
+module.exports = { chatWithMabel, complete };
