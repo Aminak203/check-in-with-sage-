@@ -287,11 +287,13 @@ export default function App() {
       }
 
       if (data.requestRating) {
+        // Rating comes first in the triage flow. If the same reply also looks
+        // like a relaxation offer, suppress the offer here — it should appear
+        // in a later message, after the user has given their rating.
+        setShowHypnoOffer(false);
         setTimeout(() => setShowDistressScale(true), 1000);
-      }
-
-      // Mabel offered a guided relaxation — surface the "Begin" affordance
-      if (data.offerHypno && !data.crisis) {
+      } else if (data.offerHypno && !data.crisis) {
+        // Mabel offered a guided relaxation — surface the "Begin" affordance
         setShowHypnoOffer(true);
       }
 

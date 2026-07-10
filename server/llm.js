@@ -52,10 +52,9 @@ async function chatWithMabel(messages) {
   ];
 
   const response = await openai.chat.completions.create({
-    model: process.env.OPENAI_MODEL || "gemma-4-31b-it",
+    model: process.env.OPENAI_MODEL || "gpt-5.4-mini",
     messages: fullMessages,
-    temperature: 0.2,
-    max_tokens: 32768,
+    max_completion_tokens: 16000,
   });
 
   return stripReasoning(response.choices[0].message.content);
@@ -63,12 +62,12 @@ async function chatWithMabel(messages) {
 
 // Generic completion helper for non-conversational tasks (e.g. script selection).
 // Reuses the same client/model as Mabel but with caller-supplied messages and limits.
-async function complete(messages, { temperature = 0.2, maxTokens = 256 } = {}) {
+// maxTokens must leave room for the model's internal reasoning, not just the reply.
+async function complete(messages, { maxTokens = 4000 } = {}) {
   const response = await openai.chat.completions.create({
-    model: process.env.OPENAI_MODEL || "gemma-4-31b-it",
+    model: process.env.OPENAI_MODEL || "gpt-5.4-mini",
     messages,
-    temperature,
-    max_tokens: maxTokens,
+    max_completion_tokens: maxTokens,
   });
 
   return stripReasoning(response.choices[0].message.content);
