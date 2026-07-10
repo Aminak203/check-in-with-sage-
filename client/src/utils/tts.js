@@ -1,4 +1,4 @@
-const TTS_API = "http://localhost:3001/api/tts";
+const TTS_API = "/api/tts";
 
 let muted = false;
 let speaking = false;

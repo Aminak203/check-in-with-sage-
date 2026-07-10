@@ -63,7 +63,7 @@ export default function App() {
       try {
         const apiMessages = messagesRef.current.filter((m) => !m.isGreeting);
         apiMessages.push({ role: "user", content: "Continue to the next tapping point." });
-        const res = await fetch("http://localhost:3001/api/chat", {
+        const res = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ messages: apiMessages }),
@@ -180,7 +180,7 @@ export default function App() {
     setIsLoading(true);
     try {
       const apiMessages = messagesRef.current.filter((m) => !m.isGreeting);
-      const res = await fetch("http://localhost:3001/api/hypno/select", {
+      const res = await fetch("/api/hypno/select", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ messages: apiMessages }),
@@ -268,7 +268,7 @@ export default function App() {
 
     try {
       const apiMessages = updatedMessages.filter((m) => !m.isGreeting);
-      const res = await fetch("http://localhost:3001/api/chat", {
+      const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ messages: apiMessages }),

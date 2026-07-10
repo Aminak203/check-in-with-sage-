@@ -84,6 +84,12 @@ app.get("/health", (req, res) => {
   res.json({ status: "ok" });
 });
 
-app.listen(PORT, () => {
-  console.log(`Mabel server running on http://localhost:${PORT}`);
-});
+// Only start a listening server when run directly (local dev).
+// On Vercel the app is imported and invoked as a serverless function.
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`Mabel server running on http://localhost:${PORT}`);
+  });
+}
+
+module.exports = app;
