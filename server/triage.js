@@ -73,7 +73,7 @@ function detectTherapyMode(text) {
   return therapyKeywords.some((keyword) => lower.includes(keyword));
 }
 
-// Detects when Sova is OFFERING a guided relaxation / hypnotherapy session.
+// Detects when Sorra is OFFERING a guided relaxation / hypnotherapy session.
 // When matched, the client surfaces a "Begin" button; pressing it triggers
 // AI script selection + the deterministic runner.
 // Kept deliberately specific so it fires on offers, not general supportive chat.

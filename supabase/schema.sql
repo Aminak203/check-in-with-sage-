@@ -1,5 +1,5 @@
 -- ===========================================================================
--- Check in with Sova — Supabase schema
+-- Check in with Sorra — Supabase schema
 -- ===========================================================================
 -- Run this once in the Supabase SQL Editor (Dashboard → SQL → New query).
 -- It creates the profiles + sessions tables, locks them down with Row Level

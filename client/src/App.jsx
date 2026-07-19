@@ -8,7 +8,7 @@ import { signOut, startSession, saveTranscript, getProfile, getPastSessions, sav
 const GREETING = {
   role: "assistant",
   content:
-    "Hello, I'm Sova. I'm here to listen and help you through whatever you're going through. What's been on your mind lately?",
+    "Hello, I'm Sorra. I'm here to listen and help you through whatever you're going through. What's been on your mind lately?",
   isGreeting: true,
 };
 
@@ -44,19 +44,19 @@ export default function App() {
   const deliveredStepRef = useRef(-1);
   const sessionIdRef = useRef(null);
   // True only on the user's very first ever session — the server uses this to
-  // add a brief nervous-system / gratitude explainer to Sova's first check-in.
+  // add a brief nervous-system / gratitude explainer to Sorra's first check-in.
   const firstSessionRef = useRef(false);
   // Between tapping "Begin" and the trance starting, we ask the client to name a
   // few things they're grateful for (Owen's steer: prime that part of the brain
   // before the relaxation). While true, the next typed message is that answer.
   const awaitingGratitudeRef = useRef(false);
-  // Short recaps of this user's recent past sessions, sent to the server so Sova
+  // Short recaps of this user's recent past sessions, sent to the server so Sorra
   // can gently recall them ("last time you mentioned…"). Built once on login.
   const memoryRef = useRef([]);
 
   // On login, assemble the cross-session memory: pull recent past sessions,
   // lazily summarize any that don't have a recap yet, and keep the latest couple
-  // to send to Sova. Runs in the background — if it's not ready by the first
+  // to send to Sorra. Runs in the background — if it's not ready by the first
   // message, that message simply goes out without recall. Never blocks the UI.
   const buildMemory = useCallback(async (userId, currentSessionId) => {
     try {
@@ -313,7 +313,7 @@ export default function App() {
         setShowHypnoOffer(false);
         setTimeout(() => setShowDistressScale(true), 1000);
       } else if (data.offerHypno && !data.crisis) {
-        // Sova offered a guided relaxation — surface the "Begin" affordance
+        // Sorra offered a guided relaxation — surface the "Begin" affordance
         setShowHypnoOffer(true);
       }
 

@@ -16,15 +16,15 @@ const MODEL = process.env.OPENAI_MODEL || "gpt-4o";
 const EMBED_MODEL = process.env.OPENAI_EMBED_MODEL || "text-embedding-3-small";
 
 // ---------------------------------------------------------------------------
-// Sova — system prompt
+// Sorra — system prompt
 // ---------------------------------------------------------------------------
 // A single authoritative system message (persona + scope + triage flow +
-// guardrails + style examples). Sova OFFERS guided hypnotherapy sessions; the
+// guardrails + style examples). Sorra OFFERS guided hypnotherapy sessions; the
 // app itself selects and plays the actual scripts (server/scripts.js + the
-// client runner), so Sova must never try to read a full relaxation script out
+// client runner), so Sorra must never try to read a full relaxation script out
 // loud — it only decides when to offer one.
 // ---------------------------------------------------------------------------
-const SYSTEM_PROMPT = `You are Sova, an early-intervention wellbeing companion for employees. You are a warm, calm, emotionally intelligent first point of contact — NOT a therapist, doctor, or crisis service. You never diagnose conditions and never give medical or medication advice.
+const SYSTEM_PROMPT = `You are Sorra, an early-intervention wellbeing companion for employees. You are a warm, calm, emotionally intelligent first point of contact — NOT a therapist, doctor, or crisis service. You never diagnose conditions and never give medical or medication advice.
 
 ## Your purpose
 You give employees a supportive space to talk, gently understand how they are doing, and — when appropriate — offer a guided hypnotherapy/relaxation session to help them feel steadier while they wait for professional support. You are a bridge to care, not a replacement for it.
@@ -93,7 +93,7 @@ function buildMemoryNote(memory) {
   )}\nLet this quietly inform your warmth and continuity. If it's relevant to what they raise, you may reference it gently ("Last time you mentioned… — how has that been?"). Do NOT recite it, interrogate them about it, or bring up distressing details unprompted. If nothing here fits the moment, simply don't mention it.`;
 }
 
-async function chatWithSova(messages, { firstSession = false, memory = [] } = {}) {
+async function chatWithSorra(messages, { firstSession = false, memory = [] } = {}) {
   let systemContent = SYSTEM_PROMPT;
   if (firstSession) systemContent += FIRST_SESSION_NOTE;
   if (Array.isArray(memory) && memory.length) systemContent += buildMemoryNote(memory);
@@ -159,4 +159,4 @@ async function embed(text) {
   return response.data[0].embedding;
 }
 
-module.exports = { chatWithSova, complete, embed, summarizeSession, EMBED_MODEL };
+module.exports = { chatWithSorra, complete, embed, summarizeSession, EMBED_MODEL };

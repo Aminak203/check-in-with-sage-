@@ -115,8 +115,8 @@ export default function AuthScreen({ onAuth }) {
         </h2>
         <p className="lock-subtitle">
           {signupMode
-            ? "Sign up to check in with Sova. You'll confirm your email, then log in."
-            : "Log in to continue your check-ins with Sova."}
+            ? "Sign up to check in with Sorra. You'll confirm your email, then log in."
+            : "Log in to continue your check-ins with Sorra."}
         </p>
 
         <div className="lock-fields">

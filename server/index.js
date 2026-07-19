@@ -1,6 +1,6 @@
 const express = require("express");
 const cors = require("cors");
-const { chatWithSova, summarizeSession } = require("./llm");
+const { chatWithSorra, summarizeSession } = require("./llm");
 const { synthesize } = require("./tts");
 const { detectCrisis, detectRatingRequest, detectTherapyMode, detectHypnoOffer } = require("./triage");
 const { selectScript, listScripts } = require("./scripts");
@@ -23,7 +23,7 @@ app.post("/api/chat", async (req, res) => {
     const userMessage = messages[messages.length - 1]?.content || "";
     const isCrisis = detectCrisis(userMessage);
 
-    const reply = await chatWithSova(messages, {
+    const reply = await chatWithSorra(messages, {
       firstSession: !!firstSession,
       memory: Array.isArray(memory) ? memory : [],
     });
@@ -109,7 +109,7 @@ app.get("/health", (req, res) => {
 // On Vercel the app is imported and invoked as a serverless function.
 if (require.main === module) {
   app.listen(PORT, () => {
-    console.log(`Sova server running on http://localhost:${PORT}`);
+    console.log(`Sorra server running on http://localhost:${PORT}`);
   });
 }
 

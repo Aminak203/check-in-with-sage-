@@ -22,9 +22,9 @@ export default function FeedbackPrompt({ userId, onClose }) {
     <div className="feedback-overlay">
       <div className="feedback-card">
         <div className="feedback-icon">💬</div>
-        <h2 className="feedback-title">You've done 5 check-ins with Sova</h2>
+        <h2 className="feedback-title">You've done 5 check-ins with Sorra</h2>
         <p className="feedback-text">
-          Thank you for giving Sova a try. Would you take a couple of minutes to
+          Thank you for giving Sorra a try. Would you take a couple of minutes to
           share how it's been for you? Your feedback shapes what we build next.
         </p>
         <div className="feedback-actions">

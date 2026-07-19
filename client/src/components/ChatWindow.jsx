@@ -42,23 +42,24 @@ export default function ChatWindow({ messages, isLoading, onSend, onLogout, show
 
   useEffect(() => {
     if (isLoading) return;
-    const nonGreeting = messages.filter((m) => !m.isGreeting);
-    const newCount = nonGreeting.length;
-    if (newCount > lastSpokenIndex.current) {
-      const lastMsg = nonGreeting[nonGreeting.length - 1];
-      if (lastMsg && lastMsg.role === "assistant" && !lastMsg.isGreeting) {
-        const idx = messages.length - 1;
-        if (isMuted()) {
-          // No audio to sync to — just speak (no-op) and leave the text visible.
-          speak(lastMsg.content, { calm: therapyMode });
-        } else {
-          // Hold the text until this message's audio actually starts.
-          setPendingSpeak((p) => [...p, idx]);
-          revealTimers.current[idx] = setTimeout(() => reveal(idx), REVEAL_FALLBACK_MS);
-          speak(lastMsg.content, { calm: therapyMode, onStart: () => reveal(idx) });
-        }
-      }
-      lastSpokenIndex.current = newCount;
+    const idx = messages.length - 1;
+    const lastMsg = messages[idx];
+    if (idx <= lastSpokenIndex.current || !lastMsg || lastMsg.role !== "assistant") return;
+    lastSpokenIndex.current = idx;
+
+    if (isMuted()) {
+      // No audio to sync to — just speak (no-op) and leave the text visible.
+      speak(lastMsg.content, { calm: therapyMode });
+    } else if (lastMsg.isGreeting) {
+      // The greeting is the first thing users see (and the login click has
+      // already granted audio permission) — voice it, but keep it visible
+      // immediately rather than holding it behind a typing bubble.
+      speak(lastMsg.content, { calm: false });
+    } else {
+      // Hold the text until this message's audio actually starts.
+      setPendingSpeak((p) => [...p, idx]);
+      revealTimers.current[idx] = setTimeout(() => reveal(idx), REVEAL_FALLBACK_MS);
+      speak(lastMsg.content, { calm: therapyMode, onStart: () => reveal(idx) });
     }
   }, [messages, isLoading, therapyMode]);
 
@@ -88,14 +89,14 @@ export default function ChatWindow({ messages, isLoading, onSend, onLogout, show
       <div className="chat-header">
         <div className={`avatar ${speaking ? "speaking" : ""}`}>🌿</div>
         <div className="header-info">
-          <span className="header-name">Sova</span>
+          <span className="header-name">Sorra</span>
           <span className="header-status">{speaking ? "Speaking..." : "Mental health support"}</span>
         </div>
         <div className="header-actions">
           {sessionCount > 0 && sessionGoal > 0 && (
             <div
               className="session-tracker"
-              title={`Check-in ${Math.min(sessionCount, sessionGoal)} of ${sessionGoal} — we'll ask how Sova's helping after ${sessionGoal}`}
+              title={`Check-in ${Math.min(sessionCount, sessionGoal)} of ${sessionGoal} — we'll ask how Sorra's helping after ${sessionGoal}`}
             >
               {Array.from({ length: sessionGoal }).map((_, i) => (
                 <span key={i} className={`session-dot ${i < sessionCount ? "filled" : ""}`} />
@@ -152,7 +153,7 @@ export default function ChatWindow({ messages, isLoading, onSend, onLogout, show
       <div className="chat-footer">
         <InputBar onSend={onSend} disabled={isLoading} prefillText={prefillText} />
         <div className="disclaimer">
-          Sova is not a substitute for professional mental health care.
+          Sorra is not a substitute for professional mental health care.
         </div>
       </div>
     </div>
