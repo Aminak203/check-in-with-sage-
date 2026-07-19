@@ -9,10 +9,9 @@ let onStateChange = null;
 
 function isTherapyText(text) {
   const therapyKeywords = [
-    "tap", "tapping", "eft", "karate chop", "collarbone",
-    "top of head", "breathing", "inhale", "exhale",
-    "relax your", "safe place", "visualize", "imagine a",
-    "close your eyes", "hypnotherapy", "reminder phrase",
+    "breathing", "inhale", "exhale",
+    "relax your", "safe place", "visualize", "visualise", "imagine a",
+    "close your eyes", "hypnotherapy", "relaxation",
   ];
   const lower = text.toLowerCase();
   return therapyKeywords.some((kw) => lower.includes(kw));
@@ -29,6 +28,16 @@ async function fetchAudio(text, calm) {
 
   const blob = await res.blob();
   return URL.createObjectURL(blob);
+}
+
+// Fire an item's onStart callback exactly once — used by callers to reveal the
+// message text in sync with audio (or when we give up, so text never gets stuck
+// hidden). Called at playback start and on every failure/skip path.
+function fireStart(item) {
+  if (item && typeof item.onStart === "function" && !item.started) {
+    item.started = true;
+    item.onStart();
+  }
 }
 
 async function processQueue() {
@@ -61,20 +70,25 @@ async function processQueue() {
         setTimeout(() => processQueue(), 200);
       };
       currentAudio.onerror = () => {
+        fireStart(item); // reveal text even if playback errors
         URL.revokeObjectURL(currentAudio.src);
         currentAudio = null;
         processing = false;
         processQueue();
       };
 
+      // Reveal the text right as the audio starts, keeping voice and words in sync.
+      fireStart(item);
       await currentAudio.play();
     } else {
+      fireStart(item);
       URL.revokeObjectURL(audioUrl);
       processing = false;
       processQueue();
     }
   } catch (err) {
     console.error("TTS fetch error:", err);
+    fireStart(item); // reveal text even if synthesis failed
     processing = false;
     processQueue();
   }
@@ -99,7 +113,7 @@ export function isSpeaking() {
 export function speak(text, options = {}) {
   if (!text || !text.trim()) return;
 
-  queue.push({ text, calm: options.calm || isTherapyText(text) });
+  queue.push({ text, calm: options.calm || isTherapyText(text), onStart: options.onStart });
 
   if (!processing) {
     processQueue();

@@ -1,4 +1,6 @@
-const { complete } = require("./llm");
+const fs = require("fs");
+const path = require("path");
+const { complete, embed } = require("./llm");
 const LONG_SCRIPTS = require("./scripts.data.json");
 
 // ---------------------------------------------------------------------------
@@ -162,16 +164,96 @@ function getScript(id) {
   return SCRIPTS.find((s) => s.id === id) || null;
 }
 
+// ---------------------------------------------------------------------------
+// Retrieval (RAG) — precomputed script embeddings
+// ---------------------------------------------------------------------------
+// Vectors are built offline by server/scripts/build-embeddings.js. We load them
+// once at startup. If the file is missing (never built) or stale (catalog
+// changed since it was built), retrieval is disabled and selectScript falls
+// back to handing the LLM the full catalog — i.e. exactly the old behaviour.
+// ---------------------------------------------------------------------------
+const EMBEDDINGS_PATH = path.join(__dirname, "scripts.embeddings.json");
+
+let SCRIPT_VECTORS = null; // { id: number[] } or null when unavailable
+(function loadEmbeddings() {
+  try {
+    const raw = fs.readFileSync(EMBEDDINGS_PATH, "utf8");
+    const data = JSON.parse(raw);
+    const haveAll = SCRIPTS.every((s) => Array.isArray(data.vectors?.[s.id]));
+    if (!haveAll) {
+      console.warn(
+        "Script embeddings are stale (catalog changed) — run `node server/scripts/build-embeddings.js`. Falling back to full-catalog selection."
+      );
+      return;
+    }
+    SCRIPT_VECTORS = data.vectors;
+  } catch (err) {
+    if (err.code !== "ENOENT") console.warn("Could not load script embeddings:", err.message);
+    // ENOENT (not built yet) is expected before first build — stay silent-ish.
+  }
+})();
+
+// Cosine similarity between two equal-length vectors (higher = more similar).
+function cosineSimilarity(a, b) {
+  let dot = 0;
+  let magA = 0;
+  let magB = 0;
+  for (let i = 0; i < a.length; i++) {
+    dot += a[i] * b[i];
+    magA += a[i] * a[i];
+    magB += b[i] * b[i];
+  }
+  const denom = Math.sqrt(magA) * Math.sqrt(magB);
+  return denom === 0 ? 0 : dot / denom;
+}
+
+// Rank all scripts by semantic closeness to `queryVector`, most similar first.
+function rankBySimilarity(queryVector) {
+  return SCRIPTS.map((s) => ({ script: s, score: cosineSimilarity(queryVector, SCRIPT_VECTORS[s.id]) }))
+    .sort((a, b) => b.score - a.score);
+}
+
+// How many top candidates we retrieve before the LLM makes the final call.
+const RETRIEVE_K = 5;
+
+// The conversation text we embed as the retrieval query. The most recent turns
+// carry the current state, so we use the tail of the transcript rather than the
+// whole history (also keeps us well inside the embedding token limit).
+function queryText(messages) {
+  return messages
+    .filter((m) => m.role !== "system")
+    .slice(-8)
+    .map((m) => `${m.role}: ${m.content}`)
+    .join("\n");
+}
+
 // Ask the LLM to pick the single best-fitting script id for the user's current
-// state. The model only returns an id; we validate it against the catalog and
-// fall back to a safe default, so an off-format answer can never break playback.
+// state. With embeddings available we first RETRIEVE the top-K closest scripts
+// and only ask the model to choose among those; without them we fall back to
+// offering the whole catalog. Either way the model returns just an id, which we
+// validate against the catalog and back off to a safe default — so an off-format
+// answer (or any failure) can never break playback.
 async function selectScript(messages) {
   const transcript = messages
     .filter((m) => m.role !== "system")
     .map((m) => `${m.role}: ${m.content}`)
     .join("\n");
 
-  const catalog = SCRIPTS.map((s) => `${s.id} — ${s.use}`).join("\n");
+  // --- Retrieval: narrow the catalog to the K most relevant scripts ---------
+  let candidates = SCRIPTS;
+  let topByScore = null;
+  if (SCRIPT_VECTORS) {
+    try {
+      const queryVector = await embed(queryText(messages));
+      const ranked = rankBySimilarity(queryVector);
+      topByScore = ranked[0].script; // best purely-semantic match (fallback)
+      candidates = ranked.slice(0, RETRIEVE_K).map((r) => r.script);
+    } catch (err) {
+      console.error("Embedding query failed, using full catalog:", err.message);
+    }
+  }
+
+  const catalog = candidates.map((s) => `${s.id} — ${s.use}`).join("\n");
 
   const selectionMessages = [
     {
@@ -192,9 +274,14 @@ async function selectScript(messages) {
     console.error("Script selection failed, using fallback:", err);
   }
 
+  // Match against the candidates the model actually saw. If it answers
+  // off-format, prefer the top retrieved script (best semantic match) over the
+  // blunt global default; only fall back to FALLBACK_ID when we have nothing.
   const normalised = raw.toLowerCase();
-  const match = SCRIPTS.find((s) => normalised.includes(s.id));
-  return getScript(match ? match.id : FALLBACK_ID);
+  const match = candidates.find((s) => normalised.includes(s.id));
+  if (match) return getScript(match.id);
+  if (topByScore) return getScript(topByScore.id);
+  return getScript(FALLBACK_ID);
 }
 
 module.exports = { SCRIPTS, listScripts, getScript, selectScript };

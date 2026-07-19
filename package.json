@@ -1,11 +1,13 @@
 {
-  "name": "talkto-mabel",
+  "name": "check-in-with-sova",
   "version": "1.0.0",
   "private": true,
   "scripts": {
     "dev:server": "node server/index.js",
     "dev:client": "npm run dev --prefix client",
-    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\""
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "build:scripts": "node server/scripts/build-scripts.js",
+    "build:embeddings": "node server/scripts/build-embeddings.js"
   },
   "dependencies": {
     "concurrently": "^8.2.2",

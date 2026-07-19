@@ -4,11 +4,27 @@ import InputBar from "./InputBar";
 import DistressScale from "./DistressScale";
 import { speak, setMuted, isMuted, stopSpeaking, setOnStateChange } from "../utils/tts";
 
-export default function ChatWindow({ messages, isLoading, onSend, onLock, onWipe, showDistressScale, onDistressSelect, onDistressClose, prefillText, therapyMode, eftAutoPlay, eftPaused, onToggleEftPause, showHypnoOffer, onStartHypno, hypnoPlaying, hypnoPaused, onToggleHypnoPause }) {
+// If audio never starts (very slow synthesis, or it fails silently), reveal the
+// held text anyway after this long so the conversation can never visually freeze.
+const REVEAL_FALLBACK_MS = 6000;
+
+export default function ChatWindow({ messages, isLoading, onSend, onLogout, showDistressScale, onDistressSelect, onDistressClose, prefillText, therapyMode, showHypnoOffer, onStartHypno, hypnoPlaying, hypnoPaused, onToggleHypnoPause }) {
   const messagesEndRef = useRef(null);
   const lastSpokenIndex = useRef(-1);
   const [muted, setMutedState] = useState(isMuted());
   const [speaking, setSpeaking] = useState(false);
+  // Indices of assistant messages whose audio hasn't started yet — shown as a
+  // typing bubble until the voice begins, so text and speech appear together.
+  const [pendingSpeak, setPendingSpeak] = useState([]);
+  const revealTimers = useRef({});
+
+  const reveal = (idx) => {
+    setPendingSpeak((p) => p.filter((x) => x !== idx));
+    if (revealTimers.current[idx]) {
+      clearTimeout(revealTimers.current[idx]);
+      delete revealTimers.current[idx];
+    }
+  };
 
   const scrollToBottom = () => {
     if (messagesEndRef.current) {
@@ -18,7 +34,7 @@ export default function ChatWindow({ messages, isLoading, onSend, onLock, onWipe
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, isLoading, showDistressScale]);
+  }, [messages, isLoading, showDistressScale, pendingSpeak]);
 
   useEffect(() => {
     setOnStateChange((state) => setSpeaking(state));
@@ -31,23 +47,40 @@ export default function ChatWindow({ messages, isLoading, onSend, onLock, onWipe
     if (newCount > lastSpokenIndex.current) {
       const lastMsg = nonGreeting[nonGreeting.length - 1];
       if (lastMsg && lastMsg.role === "assistant" && !lastMsg.isGreeting) {
-        speak(lastMsg.content, { calm: therapyMode });
-        lastSpokenIndex.current = newCount;
-      } else {
-        lastSpokenIndex.current = newCount;
+        const idx = messages.length - 1;
+        if (isMuted()) {
+          // No audio to sync to — just speak (no-op) and leave the text visible.
+          speak(lastMsg.content, { calm: therapyMode });
+        } else {
+          // Hold the text until this message's audio actually starts.
+          setPendingSpeak((p) => [...p, idx]);
+          revealTimers.current[idx] = setTimeout(() => reveal(idx), REVEAL_FALLBACK_MS);
+          speak(lastMsg.content, { calm: therapyMode, onStart: () => reveal(idx) });
+        }
       }
+      lastSpokenIndex.current = newCount;
     }
   }, [messages, isLoading, therapyMode]);
 
   useEffect(() => {
-    return () => stopSpeaking();
+    return () => {
+      stopSpeaking();
+      Object.values(revealTimers.current).forEach(clearTimeout);
+      revealTimers.current = {};
+    };
   }, []);
 
   const toggleMute = () => {
     const next = !muted;
     setMutedState(next);
     setMuted(next);
-    if (next) stopSpeaking();
+    if (next) {
+      stopSpeaking();
+      // Muting stops audio, so nothing will trigger a reveal — show any held text now.
+      Object.values(revealTimers.current).forEach(clearTimeout);
+      revealTimers.current = {};
+      setPendingSpeak([]);
+    }
   };
 
   return (
@@ -55,26 +88,33 @@ export default function ChatWindow({ messages, isLoading, onSend, onLock, onWipe
       <div className="chat-header">
         <div className={`avatar ${speaking ? "speaking" : ""}`}>🌿</div>
         <div className="header-info">
-          <span className="header-name">Mabel</span>
+          <span className="header-name">Sova</span>
           <span className="header-status">{speaking ? "Speaking..." : "Mental health support"}</span>
         </div>
         <div className="header-actions">
           <button className="header-btn" onClick={toggleMute} title={muted ? "Enable voice" : "Mute voice"}>{muted ? "🔇" : "🔊"}</button>
-          {eftAutoPlay && (
-            <button className="header-btn" onClick={onToggleEftPause} title={eftPaused ? "Resume EFT" : "Pause EFT"}>{eftPaused ? "▶️" : "⏸️"}</button>
-          )}
           {hypnoPlaying && (
             <button className="header-btn" onClick={onToggleHypnoPause} title={hypnoPaused ? "Resume relaxation" : "Pause relaxation"}>{hypnoPaused ? "▶️" : "⏸️"}</button>
           )}
-          <button className="header-btn" onClick={onLock} title="Lock session">🔒</button>
-          <button className="header-btn" onClick={onWipe} title="Wipe all data">🗑️</button>
+          <button className="header-btn" onClick={onLogout} title="Log out">🚪</button>
         </div>
       </div>
 
       <div className="chat-messages">
-        {messages.map((msg, i) => (
-          <MessageBubble key={i} message={msg} />
-        ))}
+        {messages.map((msg, i) =>
+          pendingSpeak.includes(i) ? (
+            // Awaiting audio — show a typing bubble so text lands with the voice.
+            <div key={i} className="message bot">
+              <div className="bubble typing">
+                <span className="dot"></span>
+                <span className="dot"></span>
+                <span className="dot"></span>
+              </div>
+            </div>
+          ) : (
+            <MessageBubble key={i} message={msg} />
+          )
+        )}
         {isLoading && (
           <div className="message bot">
             <div className="bubble typing">
@@ -102,7 +142,7 @@ export default function ChatWindow({ messages, isLoading, onSend, onLock, onWipe
       <div className="chat-footer">
         <InputBar onSend={onSend} disabled={isLoading} prefillText={prefillText} />
         <div className="disclaimer">
-          Mabel is not a substitute for professional mental health care.
+          Sova is not a substitute for professional mental health care.
         </div>
       </div>
     </div>

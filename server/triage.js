@@ -51,13 +51,6 @@ function detectRatingRequest(text) {
 }
 
 const therapyKeywords = [
-  "tap",
-  "tapping",
-  "eft ",
-  "karate chop",
-  "collarbone",
-  "top of head",
-  "eyebrow point",
   "breathing exercise",
   "breathe in",
   "breathe out",
@@ -67,13 +60,12 @@ const therapyKeywords = [
   "progressive muscle",
   "safe place",
   "visualize",
+  "visualise",
   "imagine a",
   "close your eyes",
   "4-7-8",
   "hypnotherapy",
-  "tapping session",
-  "tapping point",
-  "reminder phrase",
+  "relaxation",
 ];
 
 function detectTherapyMode(text) {
@@ -81,9 +73,9 @@ function detectTherapyMode(text) {
   return therapyKeywords.some((keyword) => lower.includes(keyword));
 }
 
-// Detects when Mabel is OFFERING a guided relaxation / hypnotherapy session
-// (as opposed to EFT tapping). When matched, the client surfaces a "Begin"
-// button; tapping it triggers AI script selection + the deterministic runner.
+// Detects when Sova is OFFERING a guided relaxation / hypnotherapy session.
+// When matched, the client surfaces a "Begin" button; pressing it triggers
+// AI script selection + the deterministic runner.
 // Kept deliberately specific so it fires on offers, not general supportive chat.
 const hypnoOfferPatterns = [
   /relaxation (exercise|session|technique)/i,

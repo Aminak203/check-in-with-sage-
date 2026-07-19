@@ -1,6 +1,6 @@
 const express = require("express");
 const cors = require("cors");
-const { chatWithMabel } = require("./llm");
+const { chatWithSova, summarizeSession } = require("./llm");
 const { synthesize } = require("./tts");
 const { detectCrisis, detectRatingRequest, detectTherapyMode, detectHypnoOffer } = require("./triage");
 const { selectScript, listScripts } = require("./scripts");
@@ -14,7 +14,7 @@ app.use(express.json());
 
 app.post("/api/chat", async (req, res) => {
   try {
-    const { messages } = req.body;
+    const { messages, firstSession, memory } = req.body;
 
     if (!messages || !Array.isArray(messages)) {
       return res.status(400).json({ error: "messages array is required" });
@@ -23,7 +23,10 @@ app.post("/api/chat", async (req, res) => {
     const userMessage = messages[messages.length - 1]?.content || "";
     const isCrisis = detectCrisis(userMessage);
 
-    const reply = await chatWithMabel(messages);
+    const reply = await chatWithSova(messages, {
+      firstSession: !!firstSession,
+      memory: Array.isArray(memory) ? memory : [],
+    });
 
     const isRatingRequest = detectRatingRequest(reply);
     const inTherapyMode = detectTherapyMode(reply);
@@ -63,6 +66,24 @@ app.post("/api/hypno/select", async (req, res) => {
   }
 });
 
+// Summarize one past session's transcript into a short, gentle recap the client
+// stores on the session row (sessions.summary) for cross-session memory recall.
+app.post("/api/summarize", async (req, res) => {
+  try {
+    const { transcript } = req.body;
+
+    if (!transcript || !Array.isArray(transcript)) {
+      return res.status(400).json({ error: "transcript array is required" });
+    }
+
+    const summary = await summarizeSession(transcript);
+    res.json({ summary });
+  } catch (error) {
+    console.error("Summarize error:", error);
+    res.status(500).json({ error: "Could not summarize the session" });
+  }
+});
+
 app.post("/api/tts", async (req, res) => {
   try {
     const { text, calm } = req.body;
@@ -88,7 +109,7 @@ app.get("/health", (req, res) => {
 // On Vercel the app is imported and invoked as a serverless function.
 if (require.main === module) {
   app.listen(PORT, () => {
-    console.log(`Mabel server running on http://localhost:${PORT}`);
+    console.log(`Sova server running on http://localhost:${PORT}`);
   });
 }
 

@@ -1,30 +1,36 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import ChatWindow from "./components/ChatWindow";
 import CrisisOverlay from "./components/CrisisOverlay";
-import LockScreen from "./components/LockScreen";
-import { encryptData, clearStoredData } from "./utils/crypto";
+import AuthScreen from "./components/AuthScreen";
+import FeedbackPrompt from "./components/FeedbackPrompt";
+import { signOut, startSession, saveTranscript, getProfile, getPastSessions, saveSummary } from "./utils/supabase";
 
 const GREETING = {
   role: "assistant",
   content:
-    "Hello, I'm Mabel. I'm here to listen and help you through whatever you're going through. What's been on your mind lately?",
+    "Hello, I'm Sova. I'm here to listen and help you through whatever you're going through. What's been on your mind lately?",
   isGreeting: true,
 };
 
 const AUTO_LOCK_MS = 10 * 60 * 1000;
-const EFT_STEP_DELAY = 12000; // ms between auto-sent "done" during EFT
+const SESSIONS_BEFORE_FEEDBACK = 5;
+
+// Asked once, just before every guided relaxation, to gently prime a positive
+// focus before the trance begins (Owen's steer).
+const GRATITUDE_QUESTION =
+  "Before we begin, let's gently shift your focus. Take a moment — what are three things you feel grateful for right now, however small?";
+const GRATITUDE_ACK =
+  "Thank you for sharing those — holding them in mind is a lovely way to begin.";
 
 export default function App() {
-  const [unlocked, setUnlocked] = useState(false);
-  const [passphrase, setPassphrase] = useState("");
+  const [user, setUser] = useState(null);
   const [messages, setMessages] = useState([GREETING]);
   const [isLoading, setIsLoading] = useState(false);
   const [showCrisis, setShowCrisis] = useState(false);
   const [showDistressScale, setShowDistressScale] = useState(false);
   const [prefillText, setPrefillText] = useState(null);
   const [therapyMode, setTherapyMode] = useState(false);
-  const [eftAutoPlay, setEftAutoPlay] = useState(false);
-  const [eftPaused, setEftPaused] = useState(false);
+  const [showFeedback, setShowFeedback] = useState(false);
   // Hypnotherapy / relaxation runner state
   const [showHypnoOffer, setShowHypnoOffer] = useState(false);
   const [hypnoScript, setHypnoScript] = useState(null);
@@ -32,121 +38,112 @@ export default function App() {
   const [hypnoPlaying, setHypnoPlaying] = useState(false);
   const [hypnoPaused, setHypnoPaused] = useState(false);
   const timerRef = useRef(null);
-  const eftTimerRef = useRef(null);
-  const eftAutoPlayRef = useRef(false);
   const hypnoTimerRef = useRef(null);
   const hypnoPlayingRef = useRef(false);
   const deliveredStepRef = useRef(-1);
+  const sessionIdRef = useRef(null);
+  // True only on the user's very first ever session — the server uses this to
+  // add a brief nervous-system / gratitude explainer to Sova's first check-in.
+  const firstSessionRef = useRef(false);
+  // Between tapping "Begin" and the trance starting, we ask the client to name a
+  // few things they're grateful for (Owen's steer: prime that part of the brain
+  // before the relaxation). While true, the next typed message is that answer.
+  const awaitingGratitudeRef = useRef(false);
+  // Short recaps of this user's recent past sessions, sent to the server so Sova
+  // can gently recall them ("last time you mentioned…"). Built once on login.
+  const memoryRef = useRef([]);
+
+  // On login, assemble the cross-session memory: pull recent past sessions,
+  // lazily summarize any that don't have a recap yet, and keep the latest couple
+  // to send to Sova. Runs in the background — if it's not ready by the first
+  // message, that message simply goes out without recall. Never blocks the UI.
+  const buildMemory = useCallback(async (userId, currentSessionId) => {
+    try {
+      const past = await getPastSessions(userId, currentSessionId, 5);
+      const withContent = past.filter(
+        (s) => Array.isArray(s.transcript) && s.transcript.some((m) => m.role === "user")
+      );
+      // Summarize at most the 3 most recent that still lack a recap (bounds cost).
+      for (const s of withContent.slice(0, 3)) {
+        if (s.summary && s.summary.trim()) continue;
+        try {
+          const res = await fetch("/api/summarize", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ transcript: s.transcript }),
+          });
+          const data = await res.json();
+          s.summary = (data.summary || "").trim();
+          if (s.summary) await saveSummary(s.id, s.summary);
+        } catch (e) {
+          console.error("Failed to summarize a past session:", e);
+        }
+      }
+      // Recall the two most recent non-empty summaries.
+      memoryRef.current = withContent
+        .map((s) => s.summary)
+        .filter((x) => x && x.trim())
+        .slice(0, 2);
+    } catch (e) {
+      console.error("Failed to build session memory:", e);
+    }
+  }, []);
+
+  const handleLogout = useCallback(async () => {
+    const apiMessages = messagesRef.current.filter((m) => !m.isGreeting);
+    if (apiMessages.length) await saveTranscript(sessionIdRef.current, apiMessages);
+    await signOut();
+    sessionIdRef.current = null;
+    memoryRef.current = [];
+    setUser(null);
+    setShowFeedback(false);
+    setMessages([GREETING]);
+  }, []);
 
   const resetTimer = useCallback(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => {
-      setMessages([GREETING]);
-      setUnlocked(false);
-      setPassphrase("");
+      handleLogout();
     }, AUTO_LOCK_MS);
-  }, []);
-
-  const stopEftTimer = useCallback(() => {
-    if (eftTimerRef.current) {
-      clearTimeout(eftTimerRef.current);
-      eftTimerRef.current = null;
-    }
-  }, []);
+  }, [handleLogout]);
 
   useEffect(() => {
-    if (!eftAutoPlay || eftPaused) return;
-    stopEftTimer();
-    eftTimerRef.current = setTimeout(async () => {
-      if (!eftAutoPlayRef.current || eftPaused) return;
-      setIsLoading(true);
-      try {
-        const apiMessages = messagesRef.current.filter((m) => !m.isGreeting);
-        apiMessages.push({ role: "user", content: "Continue to the next tapping point." });
-        const res = await fetch("/api/chat", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ messages: apiMessages }),
-        });
-        const data = await res.json();
-        const botMsg = { role: "assistant", content: data.reply };
-        const finalMessages = [...messagesRef.current, botMsg];
-        setMessages(finalMessages);
-        messagesRef.current = finalMessages;
-
-        if (data.crisis) setShowCrisis(true);
-        if (data.requestRating) setTimeout(() => setShowDistressScale(true), 1000);
-
-        const inTherapy = !!data.therapyMode;
-        setTherapyMode(inTherapy);
-
-        if (inTherapy && isTappingStep(data.reply)) {
-          // Continue auto-play loop
-        } else {
-          stopEftAutoPlay();
-        }
-      } catch (err) {
-        console.error("EFT auto-step error:", err);
-        stopEftAutoPlay();
-      } finally {
-        setIsLoading(false);
-      }
-    }, EFT_STEP_DELAY);
-    return () => stopEftTimer();
-  }, [eftAutoPlay, eftPaused]);
-
-  const isTappingStep = (text) => {
-    if (!text) return false;
-    const lower = text.toLowerCase();
-    return /tap|tapping|eft|karate chop|collarbone|top of head|eyebrow point|side of eye|under the (eye|nose|arm)|chin|reminder phrase/.test(lower);
-  };
-
-  const toggleEftPause = () => {
-    if (!eftAutoPlayRef.current) return;
-    setEftPaused((prev) => !prev);
-  };
-
-  const startEftAutoPlay = () => {
-    setEftAutoPlay(true);
-    eftAutoPlayRef.current = true;
-    setEftPaused(false);
-  };
-
-  const stopEftAutoPlay = () => {
-    setEftAutoPlay(false);
-    eftAutoPlayRef.current = false;
-    stopEftTimer();
-  };
-
-  useEffect(() => {
-    if (unlocked) resetTimer();
+    if (user) resetTimer();
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [unlocked, resetTimer]);
+  }, [user, resetTimer]);
 
-  const saveSession = useCallback(
-    async (msgs) => {
-      if (!passphrase) return;
-      const apiMessages = msgs.filter((m) => !m.isGreeting);
-      try {
-        const encrypted = await encryptData(apiMessages, passphrase);
-        localStorage.setItem("mabel_session", encrypted);
-        localStorage.setItem("mabel_created", Date.now().toString());
-      } catch (e) {
-        console.error("Failed to save session:", e);
-      }
-    },
-    [passphrase]
-  );
-
-  const handleUnlock = async (session, phrase) => {
-    setPassphrase(phrase);
-    setUnlocked(true);
-    if (session && session.length > 0) {
-      setMessages([GREETING, ...session]);
+  // Persist the running conversation onto the current Supabase session row.
+  const saveSession = useCallback(async (msgs) => {
+    const apiMessages = msgs.filter((m) => !m.isGreeting);
+    try {
+      await saveTranscript(sessionIdRef.current, apiMessages);
+    } catch (e) {
+      console.error("Failed to save session:", e);
     }
-  };
+  }, []);
+
+  // Called once on successful login/signup: opens a new session row (a login =
+  // one session) and, once they hit the milestone, surfaces the feedback form.
+  const handleAuth = useCallback(async (authUser) => {
+    setUser(authUser);
+    setMessages([GREETING]);
+    try {
+      const { session, sessionCount } = await startSession(authUser.id);
+      sessionIdRef.current = session.id;
+      // sessionCount includes the row we just inserted, so 1 = first ever visit.
+      firstSessionRef.current = sessionCount === 1;
+      // Build cross-session recall in the background (skipped on a first visit).
+      if (sessionCount > 1) buildMemory(authUser.id, session.id);
+      const profile = await getProfile(authUser.id);
+      if (sessionCount >= SESSIONS_BEFORE_FEEDBACK && !profile?.feedback_submitted) {
+        setShowFeedback(true);
+      }
+    } catch (e) {
+      console.error("Failed to start session:", e);
+    }
+  }, [buildMemory]);
 
   const messagesRef = useRef(messages);
   useEffect(() => {
@@ -172,11 +169,19 @@ export default function App() {
     setTherapyMode(false);
   }, []);
 
+  // Tapping "Begin" doesn't go straight into the trance: first we ask the client
+  // to name a few things they're grateful for. The next message they send is
+  // treated as that answer (see sendMessage), which then kicks off startHypno.
+  const promptGratitude = useCallback(() => {
+    setShowHypnoOffer(false);
+    awaitingGratitudeRef.current = true;
+    appendAssistant(GRATITUDE_QUESTION);
+  }, [appendAssistant]);
+
   // Ask the server to pick the best-fitting script for the current state, then
   // start the deterministic runner. The LLM only chooses; playback is scripted.
   const startHypno = useCallback(async () => {
     setShowHypnoOffer(false);
-    if (eftAutoPlayRef.current) stopEftAutoPlay();
     setIsLoading(true);
     try {
       const apiMessages = messagesRef.current.filter((m) => !m.isGreeting);
@@ -205,7 +210,7 @@ export default function App() {
     } finally {
       setIsLoading(false);
     }
-  }, [appendAssistant, stopEftAutoPlay]);
+  }, [appendAssistant]);
 
   const toggleHypnoPause = () => {
     if (!hypnoPlayingRef.current) return;
@@ -244,17 +249,25 @@ export default function App() {
     setPrefillText(null);
     if (!text.trim()) return;
 
+    // If we're waiting on the pre-trance gratitude answer, treat this message as
+    // that answer: record it, acknowledge warmly, then start the relaxation.
+    if (awaitingGratitudeRef.current) {
+      awaitingGratitudeRef.current = false;
+      const userMsg = { role: "user", content: text };
+      const updated = [...messagesRef.current, userMsg];
+      setMessages(updated);
+      messagesRef.current = updated;
+      appendAssistant(GRATITUDE_ACK);
+      await saveSession(messagesRef.current);
+      startHypno();
+      return;
+    }
+
     // Hide the distress scale as soon as the user sends anything
     setShowDistressScale(false);
 
     // A fresh user message supersedes any pending relaxation offer
     setShowHypnoOffer(false);
-
-    // If user types manually during EFT auto-play, break out
-    if (eftAutoPlayRef.current) {
-      stopEftTimer();
-      stopEftAutoPlay();
-    }
 
     // If user types during a relaxation session, break out of it
     if (hypnoPlayingRef.current) {
@@ -271,7 +284,11 @@ export default function App() {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: apiMessages }),
+        body: JSON.stringify({
+          messages: apiMessages,
+          firstSession: firstSessionRef.current,
+          memory: memoryRef.current,
+        }),
       });
 
       const data = await res.json();
@@ -293,26 +310,11 @@ export default function App() {
         setShowHypnoOffer(false);
         setTimeout(() => setShowDistressScale(true), 1000);
       } else if (data.offerHypno && !data.crisis) {
-        // Mabel offered a guided relaxation — surface the "Begin" affordance
+        // Sova offered a guided relaxation — surface the "Begin" affordance
         setShowHypnoOffer(true);
       }
 
-      const inTherapy = !!data.therapyMode;
-      setTherapyMode(inTherapy);
-
-      if (inTherapy && isTappingStep(data.reply)) {
-        if (!eftAutoPlayRef.current) {
-          startEftAutoPlay();
-        } else if (!eftPaused) {
-          // Timer will restart via useEffect
-        }
-      } else if (inTherapy && !isTappingStep(data.reply)) {
-        setEftAutoPlay(false);
-        eftAutoPlayRef.current = false;
-        stopEftTimer();
-      } else if (!inTherapy) {
-        stopEftAutoPlay();
-      }
+      setTherapyMode(!!data.therapyMode);
     } catch (err) {
       console.error("Failed to get response:", err);
       const errorMsg = {
@@ -324,36 +326,15 @@ export default function App() {
     } finally {
       setIsLoading(false);
     }
-  }, [stopEftTimer, saveSession, stopHypno]);
-
-  const handleLock = async () => {
-    const apiMessages = messagesRef.current.filter((m) => !m.isGreeting);
-    await saveSession(apiMessages);
-    setMessages([GREETING]);
-    setUnlocked(false);
-    setPassphrase("");
-  };
+  }, [saveSession, stopHypno, appendAssistant, startHypno]);
 
   const handleDistressSelect = (value) => {
     setShowDistressScale(false);
     setPrefillText(String(value));
   };
 
-  const handleWipe = async () => {
-    if (
-      window.confirm(
-        "This will permanently delete all session data. This cannot be undone."
-      )
-    ) {
-      await clearStoredData();
-      setMessages([GREETING]);
-      setUnlocked(false);
-      setPassphrase("");
-    }
-  };
-
-  if (!unlocked) {
-    return <LockScreen onUnlock={handleUnlock} />;
+  if (!user) {
+    return <AuthScreen onAuth={handleAuth} />;
   }
 
   return (
@@ -362,18 +343,14 @@ export default function App() {
         messages={messages}
         isLoading={isLoading}
         onSend={sendMessage}
-        onLock={handleLock}
-        onWipe={handleWipe}
+        onLogout={handleLogout}
         showDistressScale={showDistressScale}
         onDistressSelect={handleDistressSelect}
         onDistressClose={() => setShowDistressScale(false)}
         prefillText={prefillText}
         therapyMode={therapyMode}
-        eftAutoPlay={eftAutoPlay}
-        eftPaused={eftPaused}
-        onToggleEftPause={toggleEftPause}
         showHypnoOffer={showHypnoOffer}
-        onStartHypno={startHypno}
+        onStartHypno={promptGratitude}
         hypnoPlaying={hypnoPlaying}
         hypnoPaused={hypnoPaused}
         onToggleHypnoPause={toggleHypnoPause}
@@ -382,6 +359,12 @@ export default function App() {
         isOpen={showCrisis}
         onClose={() => setShowCrisis(false)}
       />
+      {showFeedback && (
+        <FeedbackPrompt
+          userId={user.id}
+          onClose={() => setShowFeedback(false)}
+        />
+      )}
     </div>
   );
 }
