@@ -9,6 +9,9 @@ export default function AuthScreen({ onAuth }) {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(false);
+  // When email confirmation is required, we show a dedicated "check your inbox"
+  // screen (clearer than a small notice the user can miss).
+  const [confirmSent, setConfirmSent] = useState(false);
 
   const signupMode = mode === "signup";
 
@@ -31,20 +34,27 @@ export default function AuthScreen({ onAuth }) {
     try {
       if (signupMode) {
         const data = await signUp({ name: name.trim(), email, password });
-        // If email confirmation is on, there's no session yet.
+        // If email confirmation is on, there's no session yet — send the user to
+        // the "confirm your email" screen so they know the next step.
         if (data.session && data.user) {
           onAuth(data.user);
         } else {
-          setNotice("Check your email to confirm your account, then log in.");
-          setMode("login");
-          setPassword("");
+          setConfirmSent(true);
         }
       } else {
         const data = await signIn({ email, password });
         onAuth(data.user);
       }
     } catch (e) {
-      setError(e?.message || "Something went wrong. Please try again.");
+      const msg = e?.message || "";
+      // Supabase returns "Email not confirmed" when they haven't clicked the link.
+      if (/not confirmed|confirm/i.test(msg)) {
+        setError(
+          "Please confirm your email first — open the link we sent to your inbox (check spam too), then log in."
+        );
+      } else {
+        setError(msg || "Something went wrong. Please try again.");
+      }
     } finally {
       setLoading(false);
     }
@@ -65,6 +75,37 @@ export default function AuthScreen({ onAuth }) {
     );
   }
 
+  if (confirmSent) {
+    return (
+      <div className="lock-overlay">
+        <div className="lock-card">
+          <div className="lock-icon">✉️</div>
+          <h2 className="lock-title">Confirm your email</h2>
+          <p className="lock-subtitle">
+            We've sent a confirmation link to <strong>{email}</strong>. Open it to
+            activate your account, then come back here to log in.
+          </p>
+          <div className="lock-info">
+            Didn't get it? It can take a minute — and do check your spam or junk folder.
+          </div>
+          <div className="lock-actions">
+            <button
+              className="lock-btn primary"
+              onClick={() => {
+                setConfirmSent(false);
+                setMode("login");
+                setPassword("");
+                setNotice("You can log in once you've confirmed your email.");
+              }}
+            >
+              Back to log in
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="lock-overlay">
       <div className="lock-card">
@@ -74,7 +115,7 @@ export default function AuthScreen({ onAuth }) {
         </h2>
         <p className="lock-subtitle">
           {signupMode
-            ? "Sign up to check in with Sova and track your sessions."
+            ? "Sign up to check in with Sova. You'll confirm your email, then log in."
             : "Log in to continue your check-ins with Sova."}
         </p>
 

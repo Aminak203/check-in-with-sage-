@@ -8,7 +8,7 @@ import { speak, setMuted, isMuted, stopSpeaking, setOnStateChange } from "../uti
 // held text anyway after this long so the conversation can never visually freeze.
 const REVEAL_FALLBACK_MS = 6000;
 
-export default function ChatWindow({ messages, isLoading, onSend, onLogout, showDistressScale, onDistressSelect, onDistressClose, prefillText, therapyMode, showHypnoOffer, onStartHypno, hypnoPlaying, hypnoPaused, onToggleHypnoPause }) {
+export default function ChatWindow({ messages, isLoading, onSend, onLogout, showDistressScale, onDistressSelect, onDistressClose, prefillText, therapyMode, sessionCount, sessionGoal, showHypnoOffer, onStartHypno, hypnoPlaying, hypnoPaused, onToggleHypnoPause }) {
   const messagesEndRef = useRef(null);
   const lastSpokenIndex = useRef(-1);
   const [muted, setMutedState] = useState(isMuted());
@@ -92,6 +92,16 @@ export default function ChatWindow({ messages, isLoading, onSend, onLogout, show
           <span className="header-status">{speaking ? "Speaking..." : "Mental health support"}</span>
         </div>
         <div className="header-actions">
+          {sessionCount > 0 && sessionGoal > 0 && (
+            <div
+              className="session-tracker"
+              title={`Check-in ${Math.min(sessionCount, sessionGoal)} of ${sessionGoal} — we'll ask how Sova's helping after ${sessionGoal}`}
+            >
+              {Array.from({ length: sessionGoal }).map((_, i) => (
+                <span key={i} className={`session-dot ${i < sessionCount ? "filled" : ""}`} />
+              ))}
+            </div>
+          )}
           <button className="header-btn" onClick={toggleMute} title={muted ? "Enable voice" : "Mute voice"}>{muted ? "🔇" : "🔊"}</button>
           {hypnoPlaying && (
             <button className="header-btn" onClick={onToggleHypnoPause} title={hypnoPaused ? "Resume relaxation" : "Pause relaxation"}>{hypnoPaused ? "▶️" : "⏸️"}</button>

@@ -76,6 +76,27 @@ body {
   background: rgba(255, 255, 255, 0.1);
 }
 
+/* 5-session progress tracker (beside the mute button) */
+.session-tracker {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0 8px 0 4px;
+  cursor: default;
+}
+
+.session-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.25);
+  transition: background 0.2s;
+}
+
+.session-dot.filled {
+  background: #00a884;
+}
+
 .avatar {
   width: 42px;
   height: 42px;

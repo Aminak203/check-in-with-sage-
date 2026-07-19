@@ -101,8 +101,9 @@ async function chatWithSova(messages, { firstSession = false, memory = [] } = {}
   const response = await openai.chat.completions.create({
     model: MODEL,
     messages: [{ role: "system", content: systemContent }, ...messages],
-    max_tokens: 600,
-    temperature: 0.8,
+    // Reasoning models (gpt-5.x, incl. Luna) require max_completion_tokens, not
+    // max_tokens, and only accept the default temperature — so we omit it.
+    max_completion_tokens: 600,
   });
 
   return stripReasoning(response.choices[0].message.content);
@@ -127,7 +128,7 @@ async function summarizeSession(transcript) {
       },
       { role: "user", content: `Conversation:\n${convo}\n\nSummary:` },
     ],
-    { maxTokens: 200 }
+    { maxTokens: 500 }
   );
 
   const trimmed = (summary || "").trim();
@@ -140,7 +141,7 @@ async function complete(messages, { maxTokens = 500 } = {}) {
   const response = await openai.chat.completions.create({
     model: MODEL,
     messages,
-    max_tokens: maxTokens,
+    max_completion_tokens: maxTokens,
   });
 
   return stripReasoning(response.choices[0].message.content);

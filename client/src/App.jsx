@@ -31,6 +31,7 @@ export default function App() {
   const [prefillText, setPrefillText] = useState(null);
   const [therapyMode, setTherapyMode] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
+  const [sessionCount, setSessionCount] = useState(0);
   // Hypnotherapy / relaxation runner state
   const [showHypnoOffer, setShowHypnoOffer] = useState(false);
   const [hypnoScript, setHypnoScript] = useState(null);
@@ -97,6 +98,7 @@ export default function App() {
     memoryRef.current = [];
     setUser(null);
     setShowFeedback(false);
+    setSessionCount(0);
     setMessages([GREETING]);
   }, []);
 
@@ -134,6 +136,7 @@ export default function App() {
       sessionIdRef.current = session.id;
       // sessionCount includes the row we just inserted, so 1 = first ever visit.
       firstSessionRef.current = sessionCount === 1;
+      setSessionCount(sessionCount);
       // Build cross-session recall in the background (skipped on a first visit).
       if (sessionCount > 1) buildMemory(authUser.id, session.id);
       const profile = await getProfile(authUser.id);
@@ -349,6 +352,8 @@ export default function App() {
         onDistressClose={() => setShowDistressScale(false)}
         prefillText={prefillText}
         therapyMode={therapyMode}
+        sessionCount={sessionCount}
+        sessionGoal={SESSIONS_BEFORE_FEEDBACK}
         showHypnoOffer={showHypnoOffer}
         onStartHypno={promptGratitude}
         hypnoPlaying={hypnoPlaying}
