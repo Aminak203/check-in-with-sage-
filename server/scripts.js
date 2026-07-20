@@ -149,11 +149,29 @@ const QUICK_SCRIPTS = [
 ];
 
 // Full catalog: quick in-the-moment techniques first, then the long
-// session-length hypnotherapy scripts loaded from scripts.data.json.
-const SCRIPTS = [...QUICK_SCRIPTS, ...LONG_SCRIPTS];
+// session-length hypnotherapy scripts loaded from scripts.data.json. Each script
+// is tagged with a `tier`: "quick" (short breathing/grounding techniques) or
+// "session" (full-length guided hypnotherapy — the actual product).
+const SCRIPTS = [
+  ...QUICK_SCRIPTS.map((s) => ({ ...s, tier: "quick" })),
+  ...LONG_SCRIPTS.map((s) => ({ ...s, tier: "session" })),
+];
 
-// Safe default if the model returns something unrecognisable or errors.
-const FALLBACK_ID = "four-seven-eight-breathing";
+// When the app offers a "guided hypnotherapy session" and the user accepts, the
+// trance IS the product — so selection draws from the full-length session
+// scripts, not the quick techniques. The quick scripts' short, distress-keyword
+// descriptions otherwise dominate semantic retrieval and the LLM keeps landing
+// on breathing/body-scan instead of a real hypnotherapy script. Quick scripts
+// stay in the catalog (getScript/listScripts) for any explicit use.
+const SESSION_SCRIPTS = SCRIPTS.filter((s) => s.tier === "session");
+// The quick-tier pool — short breathing/grounding techniques used ONLY when the
+// person needs an immediate in-the-moment reset (see isAcute / selectScript).
+const QUICK_POOL = SCRIPTS.filter((s) => s.tier === "quick");
+
+// Safe defaults if the model returns something unrecognisable or errors — a
+// broadly-applicable script for each tier.
+const FALLBACK_ID = "anxiety-relief"; // full session
+const QUICK_FALLBACK_ID = "four-seven-eight-breathing"; // immediate reset
 
 // Lightweight list (no step content) — for a selection prompt or a catalog endpoint.
 function listScripts() {
@@ -207,9 +225,12 @@ function cosineSimilarity(a, b) {
   return denom === 0 ? 0 : dot / denom;
 }
 
-// Rank all scripts by semantic closeness to `queryVector`, most similar first.
-function rankBySimilarity(queryVector) {
-  return SCRIPTS.map((s) => ({ script: s, score: cosineSimilarity(queryVector, SCRIPT_VECTORS[s.id]) }))
+// Rank scripts in `pool` by semantic closeness to `queryVector`, most similar
+// first. Defaults to the full catalog; guided-session selection passes the
+// session-tier pool so quick techniques don't crowd out the trance scripts.
+function rankBySimilarity(queryVector, pool = SCRIPTS) {
+  return pool
+    .map((s) => ({ script: s, score: cosineSimilarity(queryVector, SCRIPT_VECTORS[s.id]) }))
     .sort((a, b) => b.score - a.score);
 }
 
@@ -227,30 +248,74 @@ function queryText(messages) {
     .join("\n");
 }
 
+// Decide whether the person needs an IMMEDIATE in-the-moment reset (a quick
+// breathing/grounding technique) rather than a full-length guided session.
+// Deliberately conservative — a full session is the default product, so we only
+// return true for clear acute distress happening right now. Any failure (or an
+// off-format answer, common with reasoning models that spend the whole budget
+// thinking) defaults to false → a full session.
+async function isAcute(messages) {
+  const transcript = messages
+    .filter((m) => m.role !== "system")
+    .slice(-8)
+    .map((m) => `${m.role}: ${m.content}`)
+    .join("\n");
+
+  const classifyMessages = [
+    {
+      role: "system",
+      content:
+        "You triage what kind of relaxation someone needs RIGHT NOW. Answer with ONLY one word: ACUTE or SESSION. Answer ACUTE only when the person appears to be in acute distress in this moment and needs to calm down immediately — e.g. a panic attack, hyperventilating, can't catch their breath, heart racing, feeling out of control right now. For general stress, low mood, anxiety, poor sleep, overthinking, or winding down, answer SESSION.",
+    },
+    { role: "user", content: `Conversation:\n${transcript}\n\nAnswer ACUTE or SESSION.` },
+  ];
+
+  try {
+    const raw = (await complete(classifyMessages, { maxTokens: 2000 })) || "";
+    return /\bacute\b/i.test(raw);
+  } catch (err) {
+    console.error("Acute triage failed, defaulting to a full session:", err.message);
+    return false;
+  }
+}
+
 // Ask the LLM to pick the single best-fitting script id for the user's current
-// state. With embeddings available we first RETRIEVE the top-K closest scripts
-// and only ask the model to choose among those; without them we fall back to
-// offering the whole catalog. Either way the model returns just an id, which we
-// validate against the catalog and back off to a safe default — so an off-format
-// answer (or any failure) can never break playback.
+// state. First we decide the tier: a quick in-the-moment technique for acute
+// distress, otherwise a full-length hypnotherapy session (the default product).
+// Within that tier, with embeddings available we RETRIEVE the top-K closest
+// scripts and ask the model to choose among those; otherwise we offer the whole
+// tier. Either way the model returns just an id, which we validate against the
+// candidates and back off to a safe default — so an off-format answer (or any
+// failure) can never break playback.
 async function selectScript(messages) {
   const transcript = messages
     .filter((m) => m.role !== "system")
     .map((m) => `${m.role}: ${m.content}`)
     .join("\n");
 
-  // --- Retrieval: narrow the catalog to the K most relevant scripts ---------
-  let candidates = SCRIPTS;
+  // Run the tier triage and the retrieval embedding together — the query vector
+  // is tier-independent (it embeds the conversation, not the pool), so there's no
+  // need to wait for one before starting the other.
+  const [acute, queryVector] = await Promise.all([
+    isAcute(messages),
+    SCRIPT_VECTORS
+      ? embed(queryText(messages)).catch((err) => {
+          console.error("Embedding query failed, offering the whole tier:", err.message);
+          return null;
+        })
+      : Promise.resolve(null),
+  ]);
+
+  const pool = acute ? QUICK_POOL : SESSION_SCRIPTS;
+  const fallbackId = acute ? QUICK_FALLBACK_ID : FALLBACK_ID;
+
+  // --- Retrieval: narrow to the K most relevant scripts within the tier -------
+  let candidates = pool;
   let topByScore = null;
-  if (SCRIPT_VECTORS) {
-    try {
-      const queryVector = await embed(queryText(messages));
-      const ranked = rankBySimilarity(queryVector);
-      topByScore = ranked[0].script; // best purely-semantic match (fallback)
-      candidates = ranked.slice(0, RETRIEVE_K).map((r) => r.script);
-    } catch (err) {
-      console.error("Embedding query failed, using full catalog:", err.message);
-    }
+  if (queryVector) {
+    const ranked = rankBySimilarity(queryVector, pool);
+    topByScore = ranked[0].script; // best purely-semantic match (fallback)
+    candidates = ranked.slice(0, RETRIEVE_K).map((r) => r.script);
   }
 
   const catalog = candidates.map((s) => `${s.id} — ${s.use}`).join("\n");
@@ -276,12 +341,12 @@ async function selectScript(messages) {
 
   // Match against the candidates the model actually saw. If it answers
   // off-format, prefer the top retrieved script (best semantic match) over the
-  // blunt global default; only fall back to FALLBACK_ID when we have nothing.
+  // blunt tier default; only fall back to fallbackId when we have nothing.
   const normalised = raw.toLowerCase();
   const match = candidates.find((s) => normalised.includes(s.id));
   if (match) return getScript(match.id);
   if (topByScore) return getScript(topByScore.id);
-  return getScript(FALLBACK_ID);
+  return getScript(fallbackId);
 }
 
 module.exports = { SCRIPTS, listScripts, getScript, selectScript };

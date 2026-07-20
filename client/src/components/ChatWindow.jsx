@@ -40,6 +40,18 @@ export default function ChatWindow({ messages, isLoading, onSend, onLogout, show
     setOnStateChange((state) => setSpeaking(state));
   }, []);
 
+  // When the user sends a new message, cut off the previous response's audio
+  // instead of letting it play on from where it left off. Also flush any text
+  // still held behind a typing bubble so it never gets stuck.
+  useEffect(() => {
+    const lastMsg = messages[messages.length - 1];
+    if (!lastMsg || lastMsg.role !== "user") return;
+    stopSpeaking();
+    Object.values(revealTimers.current).forEach(clearTimeout);
+    revealTimers.current = {};
+    setPendingSpeak([]);
+  }, [messages]);
+
   useEffect(() => {
     if (isLoading) return;
     const idx = messages.length - 1;
