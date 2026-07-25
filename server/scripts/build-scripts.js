@@ -72,12 +72,17 @@ function xmlToText(xml) {
 
 // --- pacing -----------------------------------------------------------------
 // The client runner speaks a step then advances after `pauseMs`, and that timer
-// starts when the text is shown (not when audio ends). So pauseMs must cover
-// speaking time + a silence gap. Edge neural TTS in calm mode (rate -12%) with
-// all the "…" pauses runs ~2 words/sec effective.
-const MS_PER_WORD = 500;
+// starts when the text is shown (which, with client-side prefetch, is when the
+// audio starts). So pauseMs must cover speaking time + a contemplative silence.
+//
+// OpenAI TTS (calm, speed 0.9) reads at ~5.5 words/sec — it does NOT dwell on
+// the "…" ellipses the way Edge did — so we budget speech at a safely slower
+// ~4.5 words/sec (222 ms/word) to guarantee the audio finishes before the next
+// step, then add a fixed ~3s of quiet. This keeps an unhurried, meditative feel
+// without the long dead-air stretches the old Edge-tuned 500 ms/word produced.
+const MS_PER_WORD = 220;
 const SILENCE_GAP = 3000;
-const MIN_PAUSE = 4500;
+const MIN_PAUSE = 4000;
 
 // Steps: keep author stanzas whole when reasonable; split anything longer.
 const MAX_STEP_WORDS = 65;

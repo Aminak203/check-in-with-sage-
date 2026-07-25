@@ -4,6 +4,7 @@ import CrisisOverlay from "./components/CrisisOverlay";
 import AuthScreen from "./components/AuthScreen";
 import FeedbackPrompt from "./components/FeedbackPrompt";
 import { signOut, startSession, saveTranscript, getProfile, getPastSessions, saveSummary } from "./utils/supabase";
+import { prefetch } from "./utils/tts";
 
 const GREETING = {
   role: "assistant",
@@ -50,6 +51,9 @@ export default function App() {
   // few things they're grateful for (Owen's steer: prime that part of the brain
   // before the relaxation). While true, the next typed message is that answer.
   const awaitingGratitudeRef = useRef(false);
+  // Gratitude priming runs only on the user's first-ever session — after that we
+  // go straight into the trance, so it isn't repeated before every relaxation.
+  const gratitudeDoneRef = useRef(false);
   // Short recaps of this user's recent past sessions, sent to the server so Sorra
   // can gently recall them ("last time you mentioned…"). Built once on login.
   const memoryRef = useRef([]);
@@ -96,6 +100,8 @@ export default function App() {
     await signOut();
     sessionIdRef.current = null;
     memoryRef.current = [];
+    awaitingGratitudeRef.current = false;
+    gratitudeDoneRef.current = false;
     setUser(null);
     setShowFeedback(false);
     setSessionCount(0);
@@ -109,12 +115,16 @@ export default function App() {
     }, AUTO_LOCK_MS);
   }, [handleLogout]);
 
+  // Reset the inactivity auto-lock on any activity. New messages — whether the
+  // user's, Sorra's, or each relaxation step — count as activity, so a session
+  // never gets kicked to the login screen mid-conversation or mid-relaxation.
+  // It only locks after a genuinely idle stretch (AUTO_LOCK_MS with no messages).
   useEffect(() => {
     if (user) resetTimer();
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [user, resetTimer]);
+  }, [user, messages, resetTimer]);
 
   // Persist the running conversation onto the current Supabase session row.
   const saveSession = useCallback(async (msgs) => {
@@ -136,6 +146,7 @@ export default function App() {
       sessionIdRef.current = session.id;
       // sessionCount includes the row we just inserted, so 1 = first ever visit.
       firstSessionRef.current = sessionCount === 1;
+      gratitudeDoneRef.current = false;
       setSessionCount(sessionCount);
       // Build cross-session recall in the background (skipped on a first visit).
       if (sessionCount > 1) buildMemory(authUser.id, session.id);
@@ -178,6 +189,7 @@ export default function App() {
   const promptGratitude = useCallback(() => {
     setShowHypnoOffer(false);
     awaitingGratitudeRef.current = true;
+    gratitudeDoneRef.current = true; // prime gratitude once, on the first session
     appendAssistant(GRATITUDE_QUESTION);
   }, [appendAssistant]);
 
@@ -200,6 +212,9 @@ export default function App() {
         return;
       }
       appendAssistant(`Let's begin the ${script.name} exercise. Get comfortable, and just follow along with me.`);
+      // Warm the opening step while the "let's begin" line plays, so the trance
+      // starts smoothly rather than with an audible synthesis stall.
+      if (script.steps[0]) prefetch(script.steps[0].text, { calm: true });
       deliveredStepRef.current = -1;
       setHypnoScript(script);
       setHypnoStep(0);
@@ -214,6 +229,18 @@ export default function App() {
       setIsLoading(false);
     }
   }, [appendAssistant]);
+
+  // Tapping "Begin": on the user's first-ever session we prime gratitude first
+  // (Owen's steer), then start; on every later session we go straight into the
+  // trance so gratitude isn't repeated before each relaxation.
+  const beginRelaxation = useCallback(() => {
+    if (firstSessionRef.current && !gratitudeDoneRef.current) {
+      promptGratitude();
+    } else {
+      setShowHypnoOffer(false);
+      startHypno();
+    }
+  }, [promptGratitude, startHypno]);
 
   const toggleHypnoPause = () => {
     if (!hypnoPlayingRef.current) return;
@@ -236,6 +263,10 @@ export default function App() {
     if (deliveredStepRef.current !== hypnoStep) {
       appendAssistant(steps[hypnoStep].text);
       deliveredStepRef.current = hypnoStep;
+      // Warm the next step's audio now, during this step's pause, so it starts
+      // instantly on advance instead of stalling on synthesis.
+      const next = steps[hypnoStep + 1];
+      if (next) prefetch(next.text, { calm: true });
     }
 
     const pause = steps[hypnoStep].pauseMs || 12000;
@@ -355,7 +386,7 @@ export default function App() {
         sessionCount={sessionCount}
         sessionGoal={SESSIONS_BEFORE_FEEDBACK}
         showHypnoOffer={showHypnoOffer}
-        onStartHypno={promptGratitude}
+        onStartHypno={beginRelaxation}
         hypnoPlaying={hypnoPlaying}
         hypnoPaused={hypnoPaused}
         onToggleHypnoPause={toggleHypnoPause}

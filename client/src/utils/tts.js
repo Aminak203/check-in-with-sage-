@@ -47,6 +47,29 @@ function revokeWhenReady(audioPromise) {
   audioPromise.then((url) => url && URL.revokeObjectURL(url)).catch(() => {});
 }
 
+// Prefetch cache: cacheKey -> Promise<audioUrl|null>. Lets callers warm a
+// message's audio ahead of time — e.g. the next relaxation step, synthesized
+// during the current step's pause — so playback starts instantly instead of
+// stalling several seconds on synthesis.
+const prefetchCache = new Map();
+
+function resolveCalm(text, calm) {
+  return calm || isTherapyText(text);
+}
+
+function cacheKey(text, calm) {
+  return (calm ? "c|" : "n|") + text;
+}
+
+// Synthesize, resolving to null on failure so a queued or prefetched item that
+// fails never surfaces as an unhandled promise rejection.
+function synthAudio(text, calm) {
+  return fetchAudio(text, calm).catch((err) => {
+    console.error("TTS fetch error:", err);
+    return null;
+  });
+}
+
 function setSpeaking(value) {
   if (speaking === value) return;
   speaking = value;
@@ -147,17 +170,16 @@ export function speak(text, options = {}) {
     return;
   }
 
-  const calm = options.calm || isTherapyText(text);
-  const item = { text, calm, onStart: options.onStart, started: false };
-  // Start synthesizing now, not when it reaches the front of the queue, so audio
-  // for later bubbles in the same response is ready the moment it's their turn.
-  // Handle rejection here (resolve to null) so an item that fails while still
-  // queued never surfaces as an unhandled promise rejection.
-  item.audioPromise = fetchAudio(text, calm).catch((err) => {
-    console.error("TTS fetch error:", err);
-    return null;
-  });
+  const calm = resolveCalm(text, options.calm);
+  const key = cacheKey(text, calm);
+  // Reuse a warmed synthesis if this message was prefetched (e.g. the next
+  // relaxation step); otherwise start synthesizing now, at enqueue time, so
+  // audio for later bubbles in the same response is ready when it's their turn.
+  let audioPromise = prefetchCache.get(key);
+  if (audioPromise) prefetchCache.delete(key);
+  else audioPromise = synthAudio(text, calm);
 
+  const item = { text, calm, onStart: options.onStart, started: false, audioPromise };
   queue.push(item);
 
   if (!processing) {
@@ -165,10 +187,24 @@ export function speak(text, options = {}) {
   }
 }
 
+// Warm a message's audio ahead of when it will be spoken so playback starts
+// instantly. No-op when muted or already warmed/queued for this text+tone.
+export function prefetch(text, options = {}) {
+  if (!text || !text.trim() || muted) return;
+  const calm = resolveCalm(text, options.calm);
+  const key = cacheKey(text, calm);
+  if (prefetchCache.has(key)) return;
+  prefetchCache.set(key, synthAudio(text, calm));
+}
+
 export function stopSpeaking() {
   // Drop queued items and revoke their prefetched audio so nothing leaks.
   queue.forEach((item) => revokeWhenReady(item.audioPromise));
   queue.length = 0;
+  // Also drop any warmed-but-unspoken prefetches (e.g. the next relaxation step
+  // when the user breaks out early) so their blobs don't leak.
+  prefetchCache.forEach((p) => revokeWhenReady(p));
+  prefetchCache.clear();
   processing = false;
   if (currentAudio) {
     currentAudio.pause();
