@@ -13,19 +13,23 @@ const openai = new OpenAI({
 });
 
 // tts-1-hd = higher-fidelity voice (worth it for a calming hypnotherapy tone);
-// drop to "tts-1" via env for lower cost. "fable" is a warm, British-leaning
+// drop to "tts-1" via env for lower cost. "shimmer" is a soft, calm female
 // voice that suits the relaxation work. Both overridable without code changes.
 const TTS_MODEL = process.env.OPENAI_TTS_MODEL || "tts-1-hd";
-const TTS_VOICE = process.env.OPENAI_TTS_VOICE || "fable";
+const TTS_VOICE = process.env.OPENAI_TTS_VOICE || "shimmer";
 
-// The `calm` flag (hypnotherapy/relaxation steps) delivers a touch slower and
-// more settling; normal chat speaks at the natural pace.
+// Speak at a natural pace. (Testers found the slowed "calm" delivery too slow;
+// the `calm` flag is kept for future tuning but no longer drags the tempo.)
+// Tweak TTS_CALM_SPEED / TTS_SPEED via env if you want to nudge it.
+const CALM_SPEED = Number(process.env.TTS_CALM_SPEED) || 1.0;
+const NORMAL_SPEED = Number(process.env.TTS_SPEED) || 1.0;
+
 async function synthesize(text, { calm = false } = {}) {
   const response = await openai.audio.speech.create({
     model: TTS_MODEL,
     voice: TTS_VOICE,
     input: text,
-    speed: calm ? 0.9 : 1.0,
+    speed: calm ? CALM_SPEED : NORMAL_SPEED,
     response_format: "mp3",
   });
 

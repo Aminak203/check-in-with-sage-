@@ -6,6 +6,10 @@ let currentAudio = null;
 const queue = [];
 let processing = false;
 let onStateChange = null;
+// Fired with an item's text when it finishes (played through, failed, or was
+// skipped). Lets a caller pace work off real speech completion — e.g. the
+// relaxation runner advances to the next step only once this one is fully spoken.
+let onItemEnd = null;
 
 function isTherapyText(text) {
   const therapyKeywords = [
@@ -38,6 +42,22 @@ function fireStart(item) {
     item.started = true;
     item.onStart();
   }
+}
+
+// Report playback progress (0..1) so callers can reveal text in step with the
+// voice. Ignores backward jumps and stops reporting once complete.
+function fireProgress(item, fraction) {
+  if (!item || typeof item.onProgress !== "function" || item.progressDone) return;
+  if (fraction >= 1) item.progressDone = true;
+  item.onProgress(Math.max(0, Math.min(1, fraction)));
+}
+
+// Notify (exactly once per item) that this item is fully done — used to pace
+// callers off real speech completion.
+function fireItemEnd(item) {
+  if (!item || item.itemEnded) return;
+  item.itemEnded = true;
+  if (typeof onItemEnd === "function") onItemEnd(item.text);
 }
 
 // Revoke a prefetched blob URL once its promise settles — used when we drop
@@ -98,6 +118,8 @@ async function processQueue() {
   // stop; the queue was already cleared by stopSpeaking/setMuted if interrupted.
   if (muted) {
     fireStart(item);
+    fireProgress(item, 1);
+    fireItemEnd(item);
     if (audioUrl) URL.revokeObjectURL(audioUrl);
     processing = false;
     setSpeaking(false);
@@ -105,8 +127,10 @@ async function processQueue() {
   }
 
   if (!audioUrl) {
-    // Synthesis failed — reveal the text anyway and move to the next item.
+    // Synthesis failed — reveal the full text anyway and move to the next item.
     fireStart(item);
+    fireProgress(item, 1);
+    fireItemEnd(item);
     processQueue();
     return;
   }
@@ -118,12 +142,25 @@ async function processQueue() {
 
   currentAudio = new Audio(audioUrl);
 
+  // Drive progressive text reveal from real playback position, so the words a
+  // caller shows keep pace with the voice instead of all appearing at once.
+  if (typeof item.onProgress === "function") {
+    currentAudio.ontimeupdate = () => {
+      const d = currentAudio.duration;
+      if (d && isFinite(d) && d > 0) {
+        fireProgress(item, Math.min(1, currentAudio.currentTime / d));
+      }
+    };
+  }
+
   // Advance to the next item exactly once, whether playback ended, errored, or
   // failed to start — prevents double-advancing the queue.
   let advanced = false;
   const advance = () => {
     if (advanced) return;
     advanced = true;
+    fireProgress(item, 1); // ensure the full text is shown once playback is done
+    fireItemEnd(item);
     URL.revokeObjectURL(audioUrl);
     currentAudio = null;
     setTimeout(() => processQueue(), 200);
@@ -163,10 +200,15 @@ export function isSpeaking() {
 export function speak(text, options = {}) {
   if (!text || !text.trim()) return;
 
-  // Muted — no audio to play; reveal any held text immediately so it can't get
-  // stuck behind a typing bubble waiting for a start that never comes.
+  // Muted — no audio to play; reveal any held text immediately (and mark it
+  // fully "spoken") so it can't get stuck behind a typing bubble or a partial
+  // progressive reveal waiting for playback that never comes.
   if (muted) {
     if (typeof options.onStart === "function") options.onStart();
+    if (typeof options.onProgress === "function") options.onProgress(1);
+    // Still signal completion so audio-paced callers (the relaxation runner)
+    // keep advancing even with the voice off.
+    if (typeof onItemEnd === "function") onItemEnd(text);
     return;
   }
 
@@ -179,7 +221,14 @@ export function speak(text, options = {}) {
   if (audioPromise) prefetchCache.delete(key);
   else audioPromise = synthAudio(text, calm);
 
-  const item = { text, calm, onStart: options.onStart, started: false, audioPromise };
+  const item = {
+    text,
+    calm,
+    onStart: options.onStart,
+    onProgress: options.onProgress,
+    started: false,
+    audioPromise,
+  };
   queue.push(item);
 
   if (!processing) {
@@ -216,4 +265,19 @@ export function stopSpeaking() {
 
 export function setOnStateChange(callback) {
   onStateChange = callback;
+}
+
+// Subscribe to "item finished speaking" events (see onItemEnd). Pass null to clear.
+export function setOnItemEnd(callback) {
+  onItemEnd = callback;
+}
+
+// Pause / resume the currently-playing clip in place (used by the relaxation
+// pause button) without clearing the queue.
+export function pausePlayback() {
+  if (currentAudio && !currentAudio.paused) currentAudio.pause();
+}
+
+export function resumePlayback() {
+  if (currentAudio && currentAudio.paused) currentAudio.play().catch(() => {});
 }

@@ -4,7 +4,7 @@ import CrisisOverlay from "./components/CrisisOverlay";
 import AuthScreen from "./components/AuthScreen";
 import FeedbackPrompt from "./components/FeedbackPrompt";
 import { signOut, startSession, saveTranscript, getProfile, getPastSessions, saveSummary } from "./utils/supabase";
-import { prefetch } from "./utils/tts";
+import { prefetch, setOnItemEnd, pausePlayback, resumePlayback, isMuted, isSpeaking } from "./utils/tts";
 
 const GREETING = {
   role: "assistant",
@@ -16,12 +16,32 @@ const GREETING = {
 const AUTO_LOCK_MS = 10 * 60 * 1000;
 const SESSIONS_BEFORE_FEEDBACK = 5;
 
+// Silence held between relaxation steps, measured from when a step finishes
+// speaking to when the next one is delivered — a short, contemplative gap.
+const HYPNO_SILENCE_MS = 2800;
+// When muted (no audio to pace off), fall back to an estimated reading time so
+// the steps don't race past. ~2.6 words/sec plus a small buffer.
+const readingMs = (text) =>
+  Math.max(4000, (text.trim().match(/\S+/g) || []).length * 380 + 1500);
+
 // Asked once, just before every guided relaxation, to gently prime a positive
 // focus before the trance begins (Owen's steer).
 const GRATITUDE_QUESTION =
   "Before we begin, let's gently shift your focus. Take a moment — what are three things you feel grateful for right now, however small?";
 const GRATITUDE_ACK =
   "Thank you for sharing those — holding them in mind is a lovely way to begin.";
+
+// Rough yes/no read of a short reply to Sorra's "would you like a relaxation
+// now?" invite. Negatives are checked first so "no thanks" / "not now" win over
+// a stray affirmative word. Returns "yes" | "no" | "unknown" (unknown → the
+// reply is treated as normal conversation, not a confirmation).
+const AFFIRM_RE = /\b(yes|yeah|yep|yup|sure|ok|okay|okey|alright|please|go on|let'?s|i do|i would|sounds good|definitely|absolutely|go for it|why not|i'?m ready)\b/i;
+const NEGATE_RE = /\b(no|nope|nah|not now|not right now|maybe later|later|not really|no thanks|not today|i'?m good|i'?m okay|pass|don'?t|do not)\b/i;
+function classifyYesNo(text) {
+  if (NEGATE_RE.test(text)) return "no";
+  if (AFFIRM_RE.test(text)) return "yes";
+  return "unknown";
+}
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -42,7 +62,11 @@ export default function App() {
   const timerRef = useRef(null);
   const hypnoTimerRef = useRef(null);
   const hypnoPlayingRef = useRef(false);
+  const hypnoPausedRef = useRef(false);
   const deliveredStepRef = useRef(-1);
+  // Text of the step currently being spoken — the audio "finished" signal is
+  // matched against this so we only advance when THIS step has been fully voiced.
+  const currentStepTextRef = useRef(null);
   const sessionIdRef = useRef(null);
   // True only on the user's very first ever session — the server uses this to
   // add a brief nervous-system / gratitude explainer to Sorra's first check-in.
@@ -54,6 +78,9 @@ export default function App() {
   // Gratitude priming runs only on the user's first-ever session — after that we
   // go straight into the trance, so it isn't repeated before every relaxation.
   const gratitudeDoneRef = useRef(false);
+  // After Sorra asks "would you like a relaxation now?", the next reply is the
+  // yes/no answer — only on "yes" do we reveal the Begin button (see sendMessage).
+  const awaitingHypnoConfirmRef = useRef(false);
   // Short recaps of this user's recent past sessions, sent to the server so Sorra
   // can gently recall them ("last time you mentioned…"). Built once on login.
   const memoryRef = useRef([]);
@@ -102,6 +129,7 @@ export default function App() {
     memoryRef.current = [];
     awaitingGratitudeRef.current = false;
     gratitudeDoneRef.current = false;
+    awaitingHypnoConfirmRef.current = false;
     setUser(null);
     setShowFeedback(false);
     setSessionCount(0);
@@ -175,7 +203,9 @@ export default function App() {
     if (hypnoTimerRef.current) clearTimeout(hypnoTimerRef.current);
     hypnoTimerRef.current = null;
     hypnoPlayingRef.current = false;
+    hypnoPausedRef.current = false;
     deliveredStepRef.current = -1;
+    currentStepTextRef.current = null;
     setHypnoPlaying(false);
     setHypnoPaused(false);
     setHypnoScript(null);
@@ -244,11 +274,44 @@ export default function App() {
 
   const toggleHypnoPause = () => {
     if (!hypnoPlayingRef.current) return;
-    setHypnoPaused((prev) => !prev);
+    const next = !hypnoPausedRef.current;
+    hypnoPausedRef.current = next;
+    setHypnoPaused(next);
+    if (next) {
+      // Pausing: hold the voice and cancel any pending step advance.
+      pausePlayback();
+      if (hypnoTimerRef.current) {
+        clearTimeout(hypnoTimerRef.current);
+        hypnoTimerRef.current = null;
+      }
+    } else if (isSpeaking()) {
+      // Resuming mid-sentence: let the current step's audio play on; it will
+      // fire its own "finished" signal, which advances us.
+      resumePlayback();
+    } else {
+      // Resuming between steps (audio already finished): move on shortly.
+      hypnoTimerRef.current = setTimeout(() => setHypnoStep((s) => s + 1), HYPNO_SILENCE_MS);
+    }
   };
 
-  // Deterministic playback: deliver the current step (spoken via ChatWindow's
-  // auto-speak), then advance after that step's pause. Re-runs on step change.
+  // Advancement is driven by real speech completion (not a fixed timer): when a
+  // step's audio finishes, we wait a short silence and move to the next. This is
+  // what guarantees the next step's text is never on screen while the current
+  // one is still being spoken — it isn't even delivered until now.
+  useEffect(() => {
+    setOnItemEnd((text) => {
+      if (!hypnoPlayingRef.current || hypnoPausedRef.current) return;
+      if (text !== currentStepTextRef.current) return; // ignore non-step lines
+      if (hypnoTimerRef.current) clearTimeout(hypnoTimerRef.current);
+      const delay = isMuted() ? readingMs(text) : HYPNO_SILENCE_MS;
+      hypnoTimerRef.current = setTimeout(() => setHypnoStep((s) => s + 1), delay);
+    });
+    return () => setOnItemEnd(null);
+  }, []);
+
+  // Deliver the current step (spoken via ChatWindow's auto-speak) and warm the
+  // next step's audio. Delivery only happens once we've advanced to this step,
+  // so a step's text appears exactly when its turn to be spoken comes.
   useEffect(() => {
     if (!hypnoPlaying || hypnoPaused || !hypnoScript) return;
 
@@ -261,22 +324,13 @@ export default function App() {
 
     // Deliver each step exactly once (guards against pause/resume re-delivery).
     if (deliveredStepRef.current !== hypnoStep) {
+      currentStepTextRef.current = steps[hypnoStep].text;
       appendAssistant(steps[hypnoStep].text);
       deliveredStepRef.current = hypnoStep;
-      // Warm the next step's audio now, during this step's pause, so it starts
-      // instantly on advance instead of stalling on synthesis.
+      // Warm the next step's audio while this one plays, so it starts instantly.
       const next = steps[hypnoStep + 1];
       if (next) prefetch(next.text, { calm: true });
     }
-
-    const pause = steps[hypnoStep].pauseMs || 12000;
-    hypnoTimerRef.current = setTimeout(() => {
-      setHypnoStep((s) => s + 1);
-    }, pause);
-
-    return () => {
-      if (hypnoTimerRef.current) clearTimeout(hypnoTimerRef.current);
-    };
   }, [hypnoPlaying, hypnoPaused, hypnoStep, hypnoScript, appendAssistant, stopHypno]);
 
   const sendMessage = useCallback(async (text) => {
@@ -295,6 +349,30 @@ export default function App() {
       await saveSession(messagesRef.current);
       startHypno();
       return;
+    }
+
+    // If Sorra just asked "would you like a relaxation now?", read this reply as
+    // the yes/no answer. On "yes" reveal the Begin button; on "no" accept warmly.
+    // An ambiguous reply falls through and is handled as a normal message.
+    if (awaitingHypnoConfirmRef.current) {
+      const answer = classifyYesNo(text);
+      if (answer !== "unknown") {
+        awaitingHypnoConfirmRef.current = false;
+        const userMsg = { role: "user", content: text };
+        const updated = [...messagesRef.current, userMsg];
+        setMessages(updated);
+        messagesRef.current = updated;
+        if (answer === "yes") {
+          appendAssistant("Whenever you're ready, tap the Begin button below and we'll start.");
+          setShowHypnoOffer(true);
+        } else {
+          setShowHypnoOffer(false);
+          appendAssistant("That's completely okay — no pressure at all. I'm right here whenever you'd like to.");
+        }
+        await saveSession(messagesRef.current);
+        return;
+      }
+      awaitingHypnoConfirmRef.current = false; // ambiguous — treat as normal chat
     }
 
     // Hide the distress scale as soon as the user sends anything
@@ -344,8 +422,9 @@ export default function App() {
         setShowHypnoOffer(false);
         setTimeout(() => setShowDistressScale(true), 1000);
       } else if (data.offerHypno && !data.crisis) {
-        // Sorra offered a guided relaxation — surface the "Begin" affordance
-        setShowHypnoOffer(true);
+        // Sorra asked whether they'd like a relaxation — wait for their yes/no
+        // before revealing the Begin button, rather than surfacing it now.
+        awaitingHypnoConfirmRef.current = true;
       }
 
       setTherapyMode(!!data.therapyMode);
