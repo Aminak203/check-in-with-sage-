@@ -13,10 +13,10 @@ const openai = new OpenAI({
 });
 
 // tts-1-hd = higher-fidelity voice (worth it for a calming hypnotherapy tone);
-// drop to "tts-1" via env for lower cost. "shimmer" is a soft, calm female
-// voice that suits the relaxation work. Both overridable without code changes.
+// drop to "tts-1" via env for lower cost. "nova" is a clear, warm female voice.
+// Both overridable via env (e.g. on Vercel) without code changes.
 const TTS_MODEL = process.env.OPENAI_TTS_MODEL || "tts-1-hd";
-const TTS_VOICE = process.env.OPENAI_TTS_VOICE || "shimmer";
+const TTS_VOICE = process.env.OPENAI_TTS_VOICE || "nova";
 
 // Speak at a natural pace. (Testers found the slowed "calm" delivery too slow;
 // the `calm` flag is kept for future tuning but no longer drags the tempo.)
