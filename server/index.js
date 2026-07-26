@@ -1,6 +1,6 @@
 const express = require("express");
 const cors = require("cors");
-const { chatWithSorra, summarizeSession } = require("./llm");
+const { chatWithSorra, summarizeSession, openingGreeting } = require("./llm");
 const { synthesize } = require("./tts");
 const { detectCrisis, detectRatingRequest, detectTherapyMode, detectHypnoOffer } = require("./triage");
 const { selectScript, listScripts } = require("./scripts");
@@ -81,6 +81,23 @@ app.post("/api/summarize", async (req, res) => {
   } catch (error) {
     console.error("Summarize error:", error);
     res.status(500).json({ error: "Could not summarize the session" });
+  }
+});
+
+// Generate the personalized opening line for a new check-in (name + last-visit
+// recap). Returns a plain string the client shows/voices as the first message.
+app.post("/api/greeting", async (req, res) => {
+  try {
+    const { name, lastSummary, firstSession } = req.body;
+    const greeting = await openingGreeting({
+      name: typeof name === "string" ? name : "",
+      lastSummary: typeof lastSummary === "string" ? lastSummary : "",
+      firstSession: !!firstSession,
+    });
+    res.json({ greeting });
+  } catch (error) {
+    console.error("Greeting error:", error);
+    res.status(500).json({ error: "Could not generate a greeting" });
   }
 });
 

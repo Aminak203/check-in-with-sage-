@@ -81,45 +81,63 @@ export default function App() {
   // After Sorra asks "would you like a relaxation now?", the next reply is the
   // yes/no answer — only on "yes" do we reveal the Begin button (see sendMessage).
   const awaitingHypnoConfirmRef = useRef(false);
+  // Once the user has declined a relaxation, we stop auto-surfacing the offer /
+  // Begin button on later replies (otherwise Sorra re-offers every turn and it
+  // loops). Cleared only when the user affirmatively asks for one themselves.
+  const hypnoDeclinedRef = useRef(false);
   // Short recaps of this user's recent past sessions, sent to the server so Sorra
   // can gently recall them ("last time you mentioned…"). Built once on login.
   const memoryRef = useRef([]);
 
-  // On login, assemble the cross-session memory: pull recent past sessions,
-  // lazily summarize any that don't have a recap yet, and keep the latest couple
-  // to send to Sorra. Runs in the background — if it's not ready by the first
-  // message, that message simply goes out without recall. Never blocks the UI.
-  const buildMemory = useCallback(async (userId, currentSessionId) => {
+  // Ensure a past-session row has a recap, generating + persisting one if it's
+  // missing. Mutates s.summary so callers can reuse it. Returns "" when there's
+  // nothing meaningful to record (or on error).
+  const ensureSummary = useCallback(async (s) => {
+    if (s.summary && s.summary.trim()) return s.summary.trim();
+    if (!Array.isArray(s.transcript) || !s.transcript.some((m) => m.role === "user")) return "";
     try {
-      const past = await getPastSessions(userId, currentSessionId, 5);
+      const res = await fetch("/api/summarize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ transcript: s.transcript }),
+      });
+      const data = await res.json();
+      const summary = (data.summary || "").trim();
+      if (summary) {
+        s.summary = summary;
+        await saveSummary(s.id, summary);
+      }
+      return summary;
+    } catch (e) {
+      console.error("Failed to summarize a past session:", e);
+      return "";
+    }
+  }, []);
+
+  // Assemble the cross-session memory: summarize the recent past sessions that
+  // still lack a recap and keep the latest couple to send to Sorra for in-chat
+  // recall. Runs in the background — if it's not ready by the first message,
+  // that message simply goes out without recall. Never blocks the UI. Accepts an
+  // already-fetched session list to avoid refetching. Returns the recall array.
+  const buildMemory = useCallback(async (userId, currentSessionId, preloaded) => {
+    try {
+      const past = preloaded || (await getPastSessions(userId, currentSessionId, 5));
       const withContent = past.filter(
         (s) => Array.isArray(s.transcript) && s.transcript.some((m) => m.role === "user")
       );
       // Summarize at most the 3 most recent that still lack a recap (bounds cost).
-      for (const s of withContent.slice(0, 3)) {
-        if (s.summary && s.summary.trim()) continue;
-        try {
-          const res = await fetch("/api/summarize", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ transcript: s.transcript }),
-          });
-          const data = await res.json();
-          s.summary = (data.summary || "").trim();
-          if (s.summary) await saveSummary(s.id, s.summary);
-        } catch (e) {
-          console.error("Failed to summarize a past session:", e);
-        }
-      }
+      for (const s of withContent.slice(0, 3)) await ensureSummary(s);
       // Recall the two most recent non-empty summaries.
       memoryRef.current = withContent
         .map((s) => s.summary)
         .filter((x) => x && x.trim())
         .slice(0, 2);
+      return memoryRef.current;
     } catch (e) {
       console.error("Failed to build session memory:", e);
+      return [];
     }
-  }, []);
+  }, [ensureSummary]);
 
   const handleLogout = useCallback(async () => {
     const apiMessages = messagesRef.current.filter((m) => !m.isGreeting);
@@ -130,6 +148,7 @@ export default function App() {
     awaitingGratitudeRef.current = false;
     gratitudeDoneRef.current = false;
     awaitingHypnoConfirmRef.current = false;
+    hypnoDeclinedRef.current = false;
     setUser(null);
     setShowFeedback(false);
     setSessionCount(0);
@@ -154,6 +173,18 @@ export default function App() {
     };
   }, [user, messages, resetTimer]);
 
+  // Also count real interaction as activity, not just sent messages. Reading a
+  // reply, composing a long message, scrolling, or sitting with a relaxation all
+  // keep the session alive — so it only locks when the person has genuinely
+  // stepped away (no messages AND no interaction for AUTO_LOCK_MS).
+  useEffect(() => {
+    if (!user) return;
+    const events = ["pointerdown", "pointermove", "keydown", "touchstart", "scroll"];
+    const onActivity = () => resetTimer();
+    events.forEach((e) => window.addEventListener(e, onActivity, { passive: true }));
+    return () => events.forEach((e) => window.removeEventListener(e, onActivity));
+  }, [user, resetTimer]);
+
   // Persist the running conversation onto the current Supabase session row.
   const saveSession = useCallback(async (msgs) => {
     const apiMessages = msgs.filter((m) => !m.isGreeting);
@@ -164,11 +195,38 @@ export default function App() {
     }
   }, []);
 
+  // Open the check-in with a fresh, personal greeting (name + last-visit recap)
+  // instead of a fixed line. Set as the first message so ChatWindow voices it
+  // exactly once; falls back to the static GREETING if generation fails.
+  const openWithGreeting = useCallback(async ({ name, lastSummary, firstSession }) => {
+    try {
+      const res = await fetch("/api/greeting", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, lastSummary, firstSession }),
+      });
+      const data = await res.json();
+      const greeting = (data.greeting || "").trim();
+      setMessages([
+        greeting
+          ? { role: "assistant", content: greeting, isGreeting: true }
+          : GREETING,
+      ]);
+    } catch (e) {
+      console.error("Failed to generate opening greeting:", e);
+      setMessages([GREETING]);
+    }
+  }, []);
+
   // Called once on successful login/signup: opens a new session row (a login =
   // one session) and, once they hit the milestone, surfaces the feedback form.
   const handleAuth = useCallback(async (authUser) => {
     setUser(authUser);
-    setMessages([GREETING]);
+    // Hold the chat behind a typing bubble until the personal opening is ready,
+    // so the greeting is composed (and voiced) once, not swapped in after a
+    // static line has already been spoken.
+    setMessages([]);
+    setIsLoading(true);
     try {
       const { session, sessionCount } = await startSession(authUser.id);
       sessionIdRef.current = session.id;
@@ -176,16 +234,44 @@ export default function App() {
       firstSessionRef.current = sessionCount === 1;
       gratitudeDoneRef.current = false;
       setSessionCount(sessionCount);
-      // Build cross-session recall in the background (skipped on a first visit).
-      if (sessionCount > 1) buildMemory(authUser.id, session.id);
+
       const profile = await getProfile(authUser.id);
       if (sessionCount >= SESSIONS_BEFORE_FEEDBACK && !profile?.feedback_submitted) {
         setShowFeedback(true);
       }
+
+      // On a return visit, grab the most recent past session's recap for the
+      // greeting (summarizing just that one if needed — fast), then fill the
+      // full cross-session recall in the background for in-chat use.
+      let lastSummary = "";
+      if (sessionCount > 1) {
+        try {
+          const past = await getPastSessions(authUser.id, session.id, 5);
+          const latest = past.find(
+            (s) => Array.isArray(s.transcript) && s.transcript.some((m) => m.role === "user")
+          );
+          if (latest) {
+            lastSummary = await ensureSummary(latest);
+            if (lastSummary) memoryRef.current = [lastSummary];
+          }
+          buildMemory(authUser.id, session.id, past);
+        } catch (e) {
+          console.error("Failed to prepare session memory:", e);
+        }
+      }
+
+      await openWithGreeting({
+        name: profile?.name || authUser.user_metadata?.name || "",
+        lastSummary,
+        firstSession: firstSessionRef.current,
+      });
     } catch (e) {
       console.error("Failed to start session:", e);
+      setMessages([GREETING]);
+    } finally {
+      setIsLoading(false);
     }
-  }, [buildMemory]);
+  }, [buildMemory, ensureSummary, openWithGreeting]);
 
   const messagesRef = useRef(messages);
   useEffect(() => {
@@ -363,16 +449,24 @@ export default function App() {
         setMessages(updated);
         messagesRef.current = updated;
         if (answer === "yes") {
+          hypnoDeclinedRef.current = false;
           appendAssistant("Whenever you're ready, tap the Begin button below and we'll start.");
           setShowHypnoOffer(true);
         } else {
+          hypnoDeclinedRef.current = true;
           setShowHypnoOffer(false);
-          appendAssistant("That's completely okay — no pressure at all. I'm right here whenever you'd like to.");
+          appendAssistant("That's completely okay, no pressure at all. I'm right here whenever you'd like to.");
         }
         await saveSession(messagesRef.current);
         return;
       }
       awaitingHypnoConfirmRef.current = false; // ambiguous — treat as normal chat
+    }
+
+    // If the user themselves brings up wanting a relaxation after declining
+    // earlier, lift the suppression so Sorra can offer it again.
+    if (hypnoDeclinedRef.current && /\b(relax|breath|calm|unwind|hypno|session|meditat)/i.test(text)) {
+      hypnoDeclinedRef.current = false;
     }
 
     // Hide the distress scale as soon as the user sends anything
@@ -421,9 +515,10 @@ export default function App() {
         // in a later message, after the user has given their rating.
         setShowHypnoOffer(false);
         setTimeout(() => setShowDistressScale(true), 1000);
-      } else if (data.offerHypno && !data.crisis) {
+      } else if (data.offerHypno && !data.crisis && !hypnoDeclinedRef.current) {
         // Sorra asked whether they'd like a relaxation — wait for their yes/no
         // before revealing the Begin button, rather than surfacing it now.
+        // Skipped once the user has already declined, so we don't loop the offer.
         awaitingHypnoConfirmRef.current = true;
       }
 
