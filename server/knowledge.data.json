@@ -1,0 +1,370 @@
+{
+  "sources": {
+    "manifesto": "6ffd3156df6a8873",
+    "vision-values": "30733456ab2df437",
+    "customer-segments": "4b35b4dd294c448a",
+    "value-proposition": "11ab1ed52517e374",
+    "positioning": "c405ebaa028925cf",
+    "product-principles": "e8c02d09c81a3e46",
+    "go-to-market": "63e2a022fc7cf80d",
+    "responsible-ai": "350e18e597c783cf",
+    "ethics": "d07601d0adf80f42"
+  },
+  "anchorPhrases": {
+    "product": [
+      "What is this app for?",
+      "Who is behind this service?",
+      "What company made this?",
+      "Who pays for this platform?",
+      "How is this different from other wellbeing apps?",
+      "Is this a replacement for therapy or occupational health?",
+      "How does this product work?",
+      "Who are your customers?",
+      "Does my employer see what I say here?",
+      "What can you actually do?"
+    ],
+    "personal": [
+      "Why do I always feel like this?",
+      "How do I stop overthinking at night?",
+      "I can't cope with work anymore.",
+      "What should I tell my boss about how I'm feeling?",
+      "Can you help me sleep better?",
+      "Is it normal to feel this anxious?",
+      "I feel exhausted all the time.",
+      "How do I calm down when I'm panicking?",
+      "Why is my mind so busy?",
+      "What can I do about my stress?"
+    ]
+  },
+  "chunks": [
+    {
+      "id": "customer-segments#0",
+      "docId": "customer-segments",
+      "docTitle": "Customer Segments",
+      "label": "Customer Segments — Customer Strategy",
+      "text": "Pause with Sorra serves two distinct audiences:\n\n-   **Customers** --- organisations that purchase or embed the platform.\n-   **Users** --- people who use the platform for early emotional\n    support.\n\nOur commercial success depends on solving a genuine organisational\nproblem while creating an experience that employees choose to use."
+    },
+    {
+      "id": "customer-segments#1",
+      "docId": "customer-segments",
+      "docTitle": "Customer Segments",
+      "label": "Customer Segments — Needs",
+      "text": "-   Earlier employee engagement\n-   Scalable support before referral\n-   Service differentiation\n-   Better client outcomes"
+    },
+    {
+      "id": "customer-segments#2",
+      "docId": "customer-segments",
+      "docTitle": "Customer Segments",
+      "label": "Customer Segments — Pain Points",
+      "text": "-   Long waiting lists\n-   Limited clinical capacity\n-   Reactive referrals\n-   Pressure to innovate"
+    },
+    {
+      "id": "customer-segments#3",
+      "docId": "customer-segments",
+      "docTitle": "Customer Segments",
+      "label": "Customer Segments — Success Measures",
+      "text": "-   Increased engagement\n-   Higher client retention\n-   Better wellbeing outcomes\n-   New recurring revenue"
+    },
+    {
+      "id": "customer-segments#4",
+      "docId": "customer-segments",
+      "docTitle": "Customer Segments",
+      "label": "Customer Segments — Secondary Customers",
+      "text": "-   Employee Assistance Programme (EAP) providers\n-   Workplace wellbeing providers\n-   Employee benefits organisations\n-   HR and wellbeing consultancies\n-   Mid-sized employers (250--5,000 employees)"
+    },
+    {
+      "id": "customer-segments#5",
+      "docId": "customer-segments",
+      "docTitle": "Customer Segments",
+      "label": "Customer Segments — Primary User",
+      "text": "Employees experiencing:\n\n-   Stress\n-   Anxiety\n-   Overwhelm\n-   Emotional fatigue\n-   Low confidence\n-   Early burnout\n\nThey are still functioning but recognise they are struggling and want\nconfidential support."
+    },
+    {
+      "id": "customer-segments#6",
+      "docId": "customer-segments",
+      "docTitle": "Customer Segments",
+      "label": "Customer Segments — User Needs",
+      "text": "Users want to:\n\n-   Feel heard without judgement.\n-   Understand what they are feeling.\n-   Feel less alone.\n-   Reduce stress.\n-   Build confidence.\n-   Know when to seek further support."
+    },
+    {
+      "id": "customer-segments#7",
+      "docId": "customer-segments",
+      "docTitle": "Customer Segments",
+      "label": "Customer Segments — Jobs To Be Done",
+      "text": "When I begin to struggle...\n\n-   Help me pause.\n-   Help me make sense of how I feel.\n-   Help me calm my mind.\n-   Help me decide my next step.\n-   Help me regain confidence."
+    },
+    {
+      "id": "customer-segments#8",
+      "docId": "customer-segments",
+      "docTitle": "Customer Segments",
+      "label": "Customer Segments — Buying Influencers",
+      "text": "-   HR Directors\n-   People Directors\n-   Wellbeing Leads\n-   Occupational Health Clinicians\n-   EAP Managers\n-   Health & Wellbeing Consultants"
+    },
+    {
+      "id": "customer-segments#9",
+      "docId": "customer-segments",
+      "docTitle": "Customer Segments",
+      "label": "Customer Segments — Buying Objections",
+      "text": "-   Is it clinically safe?\n-   Is employee data protected?\n-   Will people actually use it?\n-   Does it replace therapists?\n-   Can we trust the AI?\n-   What evidence supports it?"
+    },
+    {
+      "id": "customer-segments#10",
+      "docId": "customer-segments",
+      "docTitle": "Customer Segments",
+      "label": "Customer Segments — Beachhead Market",
+      "text": "Independent Occupational Health providers and workplace wellbeing\norganisations looking to add an ethical AI-enabled early intervention\nservice without building their own technology."
+    },
+    {
+      "id": "customer-segments#11",
+      "docId": "customer-segments",
+      "docTitle": "Customer Segments",
+      "label": "Customer Segments — Expansion Markets",
+      "text": "-   Large employers\n-   Universities\n-   NHS organisations\n-   Local authorities\n-   Emergency services\n-   Insurers\n-   Global employee wellbeing providers"
+    },
+    {
+      "id": "customer-segments#12",
+      "docId": "customer-segments",
+      "docTitle": "Customer Segments",
+      "label": "Customer Segments — Customer Promise",
+      "text": "Pause with Sorra helps organisations support people earlier while giving\nindividuals a safe, compassionate space to pause, reflect and reconnect\nbefore challenges become overwhelming.\n\nEvery feature should create value for both the organisation and the\nindividual."
+    },
+    {
+      "id": "value-proposition#0",
+      "docId": "value-proposition",
+      "docTitle": "Value Proposition",
+      "label": "Value Proposition — Our Mission",
+      "text": "Pause with Sorra exists to bridge the gap between the first signs of\nstruggle and formal support.\n\nWe create a safe, private and compassionate space where people can\npause, reflect and reconnect before challenges become overwhelming.\n\nWe believe earlier conversations create healthier people, stronger\nworkplaces and better outcomes."
+    },
+    {
+      "id": "value-proposition#1",
+      "docId": "value-proposition",
+      "docTitle": "Value Proposition",
+      "label": "Value Proposition — The Problem",
+      "text": "People rarely wake up one morning unable to work.\n\nStress accumulates.\n\nConfidence declines.\n\nPerformance suffers.\n\nBurnout develops gradually.\n\nYet support often arrives too late.\n\nEmployees can wait weeks or even months for Occupational Health,\ncounselling or clinical support, leaving a critical gap where people\nfeel isolated, unsupported and uncertain where to turn.\n\nOrganisations need a scalable, ethical way to support people before\nproblems escalate."
+    },
+    {
+      "id": "value-proposition#2",
+      "docId": "value-proposition",
+      "docTitle": "Value Proposition",
+      "label": "Value Proposition — Our Solution",
+      "text": "Pause with Sorra is an AI-powered Early Intervention Platform.\n\nThrough compassionate conversation and evidence-informed therapeutic\ntechniques, Sorra helps people:\n\n-   Recognise they're struggling.\n-   Understand how they're feeling.\n-   Reduce feelings of isolation.\n-   Build emotional resilience.\n-   Take small positive wellbeing actions.\n-   Feel more confident accessing further support when needed.\n\nSorra complements professional services. It never replaces clinical\ncare."
+    },
+    {
+      "id": "value-proposition#3",
+      "docId": "value-proposition",
+      "docTitle": "Value Proposition",
+      "label": "Value Proposition — Primary Customers",
+      "text": "-   Occupational Health Providers\n-   Employee Assistance Programme (EAP) Providers\n-   Workplace Wellbeing Providers\n-   Employee Benefits Organisations\n-   Health & Wellbeing Consultancies"
+    },
+    {
+      "id": "value-proposition#4",
+      "docId": "value-proposition",
+      "docTitle": "Value Proposition",
+      "label": "Value Proposition — End Users",
+      "text": "Employees experiencing stress, anxiety, emotional fatigue, early\nburnout, low confidence and overwhelm before they reach crisis point."
+    },
+    {
+      "id": "value-proposition#5",
+      "docId": "value-proposition",
+      "docTitle": "Value Proposition",
+      "label": "Value Proposition — For Employees",
+      "text": "-   A safe place to pause.\n-   Confidential, compassionate conversations.\n-   Practical emotional regulation tools.\n-   Greater self-awareness.\n-   Increased confidence to seek help earlier."
+    },
+    {
+      "id": "value-proposition#6",
+      "docId": "value-proposition",
+      "docTitle": "Value Proposition",
+      "label": "Value Proposition — For Workplace Health Providers",
+      "text": "-   An early intervention layer before referral.\n-   Increased engagement with wellbeing services.\n-   Extended support between appointments.\n-   Greater differentiation within the market.\n-   Anonymous wellbeing insight.\n-   Scalable support without increasing clinician capacity."
+    },
+    {
+      "id": "value-proposition#7",
+      "docId": "value-proposition",
+      "docTitle": "Value Proposition",
+      "label": "Value Proposition — For Employers",
+      "text": "-   Earlier intervention.\n-   Improved employee engagement.\n-   Better wellbeing culture.\n-   Reduced escalation of wellbeing concerns.\n-   Stronger psychological safety.\n-   Healthier, more resilient workplaces."
+    },
+    {
+      "id": "value-proposition#8",
+      "docId": "value-proposition",
+      "docTitle": "Value Proposition",
+      "label": "Value Proposition — Why We're Different",
+      "text": "Most workplace wellbeing solutions are reactive.\n\nPause with Sorra is proactive.\n\nRather than waiting until someone reaches Occupational Health,\ncounselling or sickness absence, Sorra creates a trusted space where\npeople can recognise they're struggling and take positive action\nearlier.\n\nWe combine compassionate AI conversation, reflective journaling, guided\nhypnotherapy, responsible AI, ethical escalation pathways and\nhuman-centred design."
+    },
+    {
+      "id": "value-proposition#9",
+      "docId": "value-proposition",
+      "docTitle": "Value Proposition",
+      "label": "Value Proposition — Our Philosophy",
+      "text": "We don't diagnose.\n\nWe don't replace therapists.\n\nWe don't promise outcomes.\n\nWe simply create the space for people to pause.\n\nBecause sometimes one conversation is enough to change the direction\nsomeone is heading."
+    },
+    {
+      "id": "value-proposition#10",
+      "docId": "value-proposition",
+      "docTitle": "Value Proposition",
+      "label": "Value Proposition — Positioning Statement",
+      "text": "Pause with Sorra is an AI-powered Early Intervention Platform that helps\npeople recognise they're struggling, safely explore how they're feeling\nand take positive action before challenges become overwhelming.\n\nDesigned to complement Occupational Health, Employee Assistance\nProgrammes and workplace wellbeing services, Sorra provides the missing\nearly intervention layer between the first signs of struggle and formal\nsupport."
+    },
+    {
+      "id": "value-proposition#11",
+      "docId": "value-proposition",
+      "docTitle": "Value Proposition",
+      "label": "Value Proposition — Our Vision",
+      "text": "We believe the future of workplace wellbeing is proactive, not reactive.\n\nOur vision is to become the world's leading Early Intervention Platform,\nhelping millions of people access compassionate support at the moment\nthey need it most.\n\nBy empowering earlier conversations, we aim to build healthier people,\nstronger organisations and more resilient communities."
+    },
+    {
+      "id": "positioning#0",
+      "docId": "positioning",
+      "docTitle": "Positioning",
+      "label": "Positioning — Our Category",
+      "text": "Pause with Sorra is not another wellbeing app.\n\nPause with Sorra is an AI-powered **Early Intervention Platform**.\n\nWe bridge the gap between the first signs of emotional struggle and formal support."
+    },
+    {
+      "id": "positioning#1",
+      "docId": "positioning",
+      "docTitle": "Positioning",
+      "label": "Positioning — The Market We Are Creating",
+      "text": "Traditional workplace wellbeing is largely reactive.\n\nPause with Sorra is creating a new category:\n\n**Early Intervention as a Service (EIaaS).**\n\nRather than replacing Occupational Health, Employee Assistance Programmes or therapists, we strengthen the pathway to them."
+    },
+    {
+      "id": "positioning#2",
+      "docId": "positioning",
+      "docTitle": "Positioning",
+      "label": "Positioning — What Makes Us Different",
+      "text": "We do not compete on meditation content.\n\nWe do not compete on mindfulness libraries.\n\nWe do not compete on therapy marketplaces.\n\nWe compete on helping people recognise they are struggling earlier."
+    },
+    {
+      "id": "positioning#3",
+      "docId": "positioning",
+      "docTitle": "Positioning",
+      "label": "Positioning — Competitive Landscape",
+      "text": "Pause with Sorra complements rather than replaces:\n\n- Occupational Health\n- Employee Assistance Programmes (EAPs)\n- Therapists\n- Wellbeing providers\n- Meditation apps\n\nThese services remain important partners.\n\nPause with Sorra provides the missing early intervention layer before formal support begins."
+    },
+    {
+      "id": "positioning#4",
+      "docId": "positioning",
+      "docTitle": "Positioning",
+      "label": "Positioning — Our Position",
+      "text": "```\nEveryday Wellbeing\n        ↓\n Pause with Sorra\n        ↓\nOccupational Health\n        ↓\n Clinical Support\n```\n\nPause with Sorra becomes the trusted bridge between self-awareness and professional support."
+    },
+    {
+      "id": "positioning#5",
+      "docId": "positioning",
+      "docTitle": "Positioning",
+      "label": "Positioning — Our Competitive Advantage",
+      "text": "Our differentiation comes from:\n\n- Human-centred AI\n- Responsible and explainable AI\n- Evidence-informed therapeutic approaches\n- Ethical product design\n- Early intervention philosophy\n- Workplace integration\n- Psychological safety\n- Trust\n\nTechnology alone is not our advantage.\n\n**Trust is.**"
+    },
+    {
+      "id": "positioning#6",
+      "docId": "positioning",
+      "docTitle": "Positioning",
+      "label": "Positioning — Our Strategic Moat",
+      "text": "As the platform grows, our long-term advantage will come from:\n\n- Proprietary conversational architecture\n- Responsible AI governance\n- Trusted workplace partnerships\n- Continuous product learning\n- High-quality user experience\n- A recognised position as the leader in Early Intervention"
+    },
+    {
+      "id": "positioning#7",
+      "docId": "positioning",
+      "docTitle": "Positioning",
+      "label": "Positioning — Positioning Statement",
+      "text": "Pause with Sorra is the AI-powered Early Intervention Platform that helps people recognise they are struggling, safely explore how they are feeling and take positive action before challenges become overwhelming.\n\nBy supporting people earlier, we help organisations create healthier, more resilient workplaces while complementing—not replacing—professional wellbeing services."
+    },
+    {
+      "id": "positioning#8",
+      "docId": "positioning",
+      "docTitle": "Positioning",
+      "label": "Positioning — Category Statement",
+      "text": "Pause with Sorra is creating the Early Intervention category.\n\nEverything we build should reinforce this position.\n\nWhen people think of Early Intervention, we want them to think of Pause with Sorra."
+    },
+    {
+      "id": "go-to-market#0",
+      "docId": "go-to-market",
+      "docTitle": "Go-to-Market Strategy",
+      "label": "Go-to-Market Strategy — Purpose",
+      "text": "The purpose of our Go-to-Market strategy is not simply to sell software.\n\nIt is to establish Pause with Sorra as the trusted leader in AI-powered Early Intervention.\n\nWe will grow through trust, evidence and strategic partnerships rather than aggressive sales."
+    },
+    {
+      "id": "go-to-market#1",
+      "docId": "go-to-market",
+      "docTitle": "Go-to-Market Strategy",
+      "label": "Go-to-Market Strategy — Our Market Entry Strategy",
+      "text": "Rather than selling directly into large organisations from day one, Pause with Sorra will enter the market through trusted workplace wellbeing partners.\n\nThis allows us to:\n\n- Build credibility.\n- Generate evidence.\n- Improve the platform.\n- Reduce procurement barriers.\n- Scale through existing relationships."
+    },
+    {
+      "id": "go-to-market#2",
+      "docId": "go-to-market",
+      "docTitle": "Go-to-Market Strategy",
+      "label": "Go-to-Market Strategy — Phase One — Product Validation",
+      "text": "Objective\n\nValidate that people trust, engage with and benefit from Pause with Sorra.\n\nActivities\n\n- Closed beta testing.\n- User interviews.\n- Behavioural analytics.\n- Clinical review.\n- Safety testing.\n- AI evaluation.\n\nSuccess Measures\n\n- Weekly active users.\n- Repeat conversations.\n- User trust.\n- Self-reported impact.\n- Net Promoter Score (NPS).\n- Qualitative feedback."
+    },
+    {
+      "id": "go-to-market#3",
+      "docId": "go-to-market",
+      "docTitle": "Go-to-Market Strategy",
+      "label": "Go-to-Market Strategy — Phase Two — Pilot Partnerships",
+      "text": "Objective\n\nPartner with organisations already delivering workplace wellbeing.\n\nTarget Partners\n\n- Occupational Health providers.\n- Employee Assistance Programme providers.\n- Workplace wellbeing consultancies.\n- Employee benefit providers.\n- Independent HR consultancies.\n\nOffer\n\nA structured pilot programme allowing partners to evaluate the impact of Pause with Sorra before wider deployment."
+    },
+    {
+      "id": "go-to-market#4",
+      "docId": "go-to-market",
+      "docTitle": "Go-to-Market Strategy",
+      "label": "Go-to-Market Strategy — Phase Three — Commercial Deployment",
+      "text": "Objective\n\nConvert successful pilots into recurring commercial partnerships.\n\nCommercial Model\n\n- Annual platform licence.\n- Per-user pricing.\n- White-label opportunities.\n- API integrations.\n\nPriority\n\nLong-term recurring revenue rather than one-off projects."
+    },
+    {
+      "id": "go-to-market#5",
+      "docId": "go-to-market",
+      "docTitle": "Go-to-Market Strategy",
+      "label": "Go-to-Market Strategy — Phase Four — Category Leadership",
+      "text": "Objective\n\nBecome recognised as the leader in Early Intervention.\n\nActivities\n\n- Publish evidence.\n- Speak at conferences.\n- Build strategic partnerships.\n- Produce thought leadership.\n- Share research.\n- Develop industry frameworks.\n- Contribute to responsible AI discussions.\n\nOur ambition is to define the category rather than simply participate in it."
+    },
+    {
+      "id": "go-to-market#6",
+      "docId": "go-to-market",
+      "docTitle": "Go-to-Market Strategy",
+      "label": "Go-to-Market Strategy — Customer Acquisition",
+      "text": "Primary Routes\n\n- Strategic partnerships.\n- Industry referrals.\n- Professional networks.\n- Thought leadership.\n- Conferences.\n- LinkedIn.\n- Clinical partnerships.\n\nSecondary Routes\n\n- Website.\n- Organic search.\n- PR.\n- Podcasts.\n- Newsletters.\n- Community engagement."
+    },
+    {
+      "id": "go-to-market#7",
+      "docId": "go-to-market",
+      "docTitle": "Go-to-Market Strategy",
+      "label": "Go-to-Market Strategy — Trust Strategy",
+      "text": "Trust is our primary growth engine.\n\nWe build trust through:\n\n- Responsible AI.\n- Transparent governance.\n- Ethical design.\n- Clinical oversight.\n- Evidence generation.\n- User-centred design.\n- Honest communication.\n\nWithout trust there is no sustainable growth."
+    },
+    {
+      "id": "go-to-market#8",
+      "docId": "go-to-market",
+      "docTitle": "Go-to-Market Strategy",
+      "label": "Go-to-Market Strategy — Evidence Strategy",
+      "text": "Every deployment should generate evidence.\n\nWe will continuously measure:\n\n- Engagement.\n- Wellbeing outcomes.\n- User confidence.\n- Repeat usage.\n- Satisfaction.\n- Clinical safety.\n- Organisational value.\n\nEvidence becomes our most powerful marketing asset."
+    },
+    {
+      "id": "go-to-market#9",
+      "docId": "go-to-market",
+      "docTitle": "Go-to-Market Strategy",
+      "label": "Go-to-Market Strategy — Market Expansion",
+      "text": "Year 1\n\nIndependent wellbeing providers.\n\n↓\n\nYear 2\n\nMedium-sized employers.\n\n↓\n\nYear 3\n\nLarge enterprises.\n\n↓\n\nYear 4\n\nPublic sector.\n\n↓\n\nYear 5\n\nInternational expansion."
+    },
+    {
+      "id": "go-to-market#10",
+      "docId": "go-to-market",
+      "docTitle": "Go-to-Market Strategy",
+      "label": "Go-to-Market Strategy — Strategic Partnerships",
+      "text": "Our preferred partners include:\n\n- Occupational Health providers.\n- Employee Assistance Programmes.\n- Health insurers.\n- Benefits platforms.\n- HR technology providers.\n- Universities.\n- Research organisations.\n\nPartnerships allow Pause with Sorra to scale faster than direct sales alone."
+    },
+    {
+      "id": "go-to-market#11",
+      "docId": "go-to-market",
+      "docTitle": "Go-to-Market Strategy",
+      "label": "Go-to-Market Strategy — Success Measures",
+      "text": "Commercial success will be measured through:\n\n- Partner growth.\n- Annual Recurring Revenue (ARR).\n- Customer retention.\n- User engagement.\n- Platform utilisation.\n- Evidence generation.\n- Market reputation.\n- Trust."
+    },
+    {
+      "id": "go-to-market#12",
+      "docId": "go-to-market",
+      "docTitle": "Go-to-Market Strategy",
+      "label": "Go-to-Market Strategy — Our Long-Term Strategy",
+      "text": "Pause with Sorra will become the infrastructure that enables earlier emotional support across workplaces.\n\nWe are not trying to become the biggest wellbeing app.\n\nWe are building the trusted platform that organisations choose when they want to support people before challenges become overwhelming.\n\nHelping people pause before life presses pause for them."
+    }
+  ]
+}

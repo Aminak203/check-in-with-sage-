@@ -1,4 +1,5 @@
 const OpenAI = require("openai");
+const { DOCTRINE_NOTE, retrieveKnowledge } = require("./knowledge");
 require("dotenv").config();
 
 // Defaults to the OpenAI platform (SDK default base URL) unless OPENAI_BASE_URL
@@ -51,6 +52,13 @@ When someone agrees to a session, the app shows a "Begin" button and then takes 
 
 Offer a relaxation only ONCE. If they decline or aren't ready, accept it warmly, move on, and do NOT offer or mention it again unless THEY bring it up. Never re-ask "would you like a relaxation?" after a no, don't keep nudging toward it, and don't reference the Begin button. Just carry on the conversation and stay with how they're feeling.
 
+## Marking an offer (invisible to the user)
+End your message with the marker [[OFFER]] whenever that message invites them into a guided session. This includes when you're answering their questions about it and telling them they can start whenever they're ready — if your message leaves the door open, mark it.
+
+The app removes this marker before the person reads or hears anything, so it is never visible and never spoken. It is the ONLY way the app knows to show the Begin button, so an unmarked invitation leaves them waiting for something that never appears. Leave it off any message that isn't an invitation.
+
+If someone tells you they're ready (or asks to start) and it seems nothing happened for them, do NOT tell them to refresh, reopen, or reinstall the app, and do not tell them you're unable to start it. Refreshing would end the check-in and lose everything you've talked about. Instead, stay warm and simply invite them again in one short sentence, marked with [[OFFER]], so the button appears.
+
 ## Guardrails
 - Never diagnose, never suggest medication, never claim to be a therapist or a substitute for one.
 - Don't make promises about outcomes.
@@ -79,6 +87,25 @@ Warmly suggest they try it day to day. Keep it light and human, a single helpful
 
 If they seem unsure what a guided relaxation or hypnotherapy session is, reassure them briefly and plainly: it's just gentle guided relaxation where you listen and let your body settle, nothing strange, and they stay in control the whole time. One warm sentence, only if it helps, never a sales pitch.`;
 
+// The invisible marker Sorra appends when she's inviting someone into a guided
+// session (see "Marking an offer" in the system prompt). Matched permissively —
+// single or double brackets, optional underscore suffix, any casing — because a
+// marker that slips through would be shown on screen and read aloud by the TTS.
+const OFFER_MARKER = /\[\[?\s*OFFER(?:[_ ]?RELAXATION)?\s*\]?\]/gi;
+
+// Split an offer marker off a reply. Returns the display text plus whether the
+// marker was present, which is a direct read of Sorra's intent rather than a
+// guess at her wording. Callers OR this with the keyword detector, since the
+// model does occasionally forget to emit it.
+function stripOfferMarker(text) {
+  const raw = text || "";
+  const cleaned = raw.replace(OFFER_MARKER, "");
+  return {
+    text: cleaned.replace(/[ \t]{2,}/g, " ").trim(),
+    offered: cleaned !== raw,
+  };
+}
+
 // Strip any chain-of-thought wrappers some models emit; harmless for OpenAI.
 function stripReasoning(text) {
   return (text || "")
@@ -99,9 +126,15 @@ function buildMemoryNote(memory) {
 }
 
 async function chatWithSorra(messages, { firstSession = false, memory = [] } = {}) {
-  let systemContent = SYSTEM_PROMPT;
+  // The company documentation reaches Sorra two ways (see server/knowledge.js):
+  // the distilled doctrine is part of every prompt, while the commercial docs
+  // are pulled in only when the person actually asks something they answer.
+  const knowledgeNote = await retrieveKnowledge(messages);
+
+  let systemContent = SYSTEM_PROMPT + DOCTRINE_NOTE;
   if (firstSession) systemContent += FIRST_SESSION_NOTE;
   if (Array.isArray(memory) && memory.length) systemContent += buildMemoryNote(memory);
+  systemContent += knowledgeNote;
 
   const response = await openai.chat.completions.create({
     model: MODEL,
@@ -202,4 +235,12 @@ async function embed(text) {
   return response.data[0].embedding;
 }
 
-module.exports = { chatWithSorra, complete, embed, summarizeSession, openingGreeting, EMBED_MODEL };
+module.exports = {
+  chatWithSorra,
+  complete,
+  embed,
+  summarizeSession,
+  openingGreeting,
+  stripOfferMarker,
+  EMBED_MODEL,
+};
