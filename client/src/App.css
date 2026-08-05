@@ -1,3 +1,90 @@
+/* ---------------------------------------------------------------------------
+   Brand tokens
+   ---------------------------------------------------------------------------
+   Every colour and font in this file resolves through the variables below, so
+   a rebrand is an edit here rather than a find-and-replace across the sheet.
+
+   Two things are deliberately NOT tokenised:
+   - The chat canvas doodle pattern (.chat-window background-image) bakes its
+     colour into an inline SVG data URI. CSS variables can't be interpolated
+     into url(), so its tint (#a8c4bd) has to be edited in place.
+   - rgba(0, 0, 0, x) drop shadows, which are neutral rather than brand.
+--------------------------------------------------------------------------- */
+:root {
+  /* Typography — --font-display is used for names/titles, --font-body for the
+     rest. Both currently resolve to the same system stack. */
+  --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  --font-display: var(--font-body);
+
+  /* --- Brand gradient -----------------------------------------------------
+     Sampled from PauseforSorra_Icon-GradientBleed.png: lilac at top-left
+     through cyan at top-right to mint at bottom-right, with deep teal in the
+     bottom-left. Kept as named stops so the accents below trace back to the
+     mark itself. */
+  --brand-lilac: #ecb8f6;
+  --brand-sky: #8ad8fd;
+  --brand-cyan: #10ffff;
+  --brand-aqua: #0cfcd1;
+  --brand-mint: #29ea94;
+  --brand-teal-deep: #00707b;
+  --brand-gradient: linear-gradient(
+    135deg,
+    var(--brand-lilac) 0%,
+    var(--brand-sky) 25%,
+    var(--brand-cyan) 45%,
+    var(--brand-aqua) 65%,
+    var(--brand-mint) 100%
+  );
+
+  /* --- Interactive teal ---------------------------------------------------
+     Anything that carries white label text. Deliberately a darker step of the
+     gradient's teal than the vivid --brand-mint: white on this is 4.52:1
+     (WCAG AA), where white on the vivid mint is only 2.5:1. Replaces the old
+     WhatsApp green, which itself only managed 3.03:1. */
+  --color-primary: #08857a;
+  --color-primary-hover: #00796b;
+  --color-primary-active: var(--brand-teal-deep);
+
+  /* Vivid accent — decorative only, and only on dark surfaces (6.5:1 on the
+     raised dark field, but 1.58:1 on white). Never use it for text on light.
+     The -rgb triple feeds the rgba() alpha steps in the avatar pulse. */
+  --color-accent: var(--brand-mint);
+  --color-accent-rgb: 41, 234, 148;
+
+  /* Dark surfaces — page backdrop, chat header, and the lock/feedback cards.
+     Teal-tinted near-blacks, so the WhatsApp layering survives the rebrand. */
+  --color-backdrop: #08191c;
+  --color-surface-dark: #12333a;
+  --color-surface-dark-raised: #1b4650;
+
+  /* Light surfaces — chat canvas, bubbles, footer, inline controls. The canvas
+     sits 1.16:1 against the white bot bubble, matching the 1.20:1 separation
+     the old beige had. */
+  --color-canvas: #e8f0ee;
+  --color-surface: #fff;
+  --color-surface-muted: #f0f4f3;
+  --color-surface-muted-hover: #e2eae8;
+  --color-bubble-user: #cff8e9;
+
+  /* Text. --color-text-strong is a dark ink for light backgrounds; it happens
+     to be close to --color-surface-dark but is a separate role.
+     Muted text is split by background: the light-surface value would only
+     reach 2.6:1 on the dark cards, so those use the -on-dark variant. */
+  --color-text-strong: #0e2a30;
+  --color-text-on-dark: #e9f2f1;
+  --color-text-on-primary: #fff;
+  --color-text-secondary: #4a6169;
+  --color-text-muted: #5b7076;
+  --color-text-muted-on-dark: #8fa8a9;
+  --color-text-faint: #98b0b3;
+
+  /* State */
+  --color-disabled: #9db0b2;
+  --color-danger: #ff6b6b;
+  --color-danger-hover: #ff8787;
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -5,9 +92,8 @@
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-    "Helvetica Neue", Arial, sans-serif;
-  background: #111b21;
+  font-family: var(--font-body);
+  background: var(--color-backdrop);
   height: 100vh;
   display: flex;
   justify-content: center;
@@ -33,8 +119,9 @@ body {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: #efeae2;
-  background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23c9c3bb' fill-opacity='0.15'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  background: var(--color-canvas);
+  /* Doodle tint (%23a8c4bd) is baked into this data URI — see note at top. */
+  background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23a8c4bd' fill-opacity='0.15'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 8px 40px rgba(0, 0, 0, 0.3);
@@ -51,8 +138,8 @@ body {
   align-items: center;
   gap: 12px;
   padding: 10px 16px;
-  background: #1f2c34;
-  color: #fff;
+  background: var(--color-surface-dark);
+  color: var(--color-text-on-primary);
 }
 
 .header-actions {
@@ -93,19 +180,25 @@ body {
   transition: background 0.2s;
 }
 
+/* Accent, not primary: these 7px dots sit on the dark header, where the
+   interactive teal would barely separate from the background. */
 .session-dot.filled {
-  background: #00a884;
+  background: var(--color-accent);
 }
 
+/* The logo mark. The source PNG is the full-bleed gradient square; the circle
+   comes from border-radius here, which is also how the platform icons in
+   public/ get masked. --brand-gradient is the fallback if the image fails. */
 .avatar {
   width: 42px;
   height: 42px;
   border-radius: 50%;
-  background: #00a884;
+  background-image: url("/avatar-96.png"), var(--brand-gradient);
+  background-size: cover;
+  background-position: center;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 22px;
   flex-shrink: 0;
   transition: box-shadow 0.3s ease;
 }
@@ -114,9 +207,11 @@ body {
   animation: avatarPulse 1.5s ease-in-out infinite;
 }
 
+/* Pulses in the accent mint rather than the interactive teal — the speaking
+   halo has to read against the dark header. */
 @keyframes avatarPulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(0, 168, 132, 0.4); }
-  50% { box-shadow: 0 0 0 8px rgba(0, 168, 132, 0); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(var(--color-accent-rgb), 0.45); }
+  50% { box-shadow: 0 0 0 8px rgba(var(--color-accent-rgb), 0); }
 }
 
 .header-info {
@@ -125,13 +220,14 @@ body {
 }
 
 .header-name {
+  font-family: var(--font-display);
   font-weight: 600;
   font-size: 16px;
 }
 
 .header-status {
   font-size: 12px;
-  color: #8696a0;
+  color: var(--color-text-muted-on-dark);
 }
 
 .chat-messages {
@@ -167,13 +263,13 @@ body {
 }
 
 .bubble.bot {
-  background: #fff;
+  background: var(--color-surface);
   border-top-left-radius: 0;
   box-shadow: 0 1px 1px rgba(0, 0, 0, 0.08);
 }
 
 .bubble.user {
-  background: #d9fdd3;
+  background: var(--color-bubble-user);
   border-top-right-radius: 0;
   box-shadow: 0 1px 1px rgba(0, 0, 0, 0.08);
 }
@@ -188,7 +284,7 @@ body {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #8696a0;
+  background: var(--color-text-muted);
   animation: bounce 1.4s infinite ease-in-out;
 }
 
@@ -214,7 +310,7 @@ body {
 }
 
 .chat-footer {
-  background: #f0f2f5;
+  background: var(--color-surface-muted);
   padding: 8px 12px;
 }
 
@@ -231,7 +327,7 @@ body {
   border-radius: 24px;
   font-size: 15px;
   outline: none;
-  background: #fff;
+  background: var(--color-surface);
 }
 
 .input-bar button {
@@ -239,8 +335,8 @@ body {
   height: 42px;
   border: none;
   border-radius: 50%;
-  background: #00a884;
-  color: #fff;
+  background: var(--color-primary);
+  color: var(--color-text-on-primary);
   font-size: 18px;
   cursor: pointer;
   display: flex;
@@ -251,18 +347,18 @@ body {
 }
 
 .input-bar button:hover:not(:disabled) {
-  background: #008f72;
+  background: var(--color-primary-hover);
 }
 
 .input-bar button:disabled {
-  background: #b5c1c8;
+  background: var(--color-disabled);
   cursor: not-allowed;
 }
 
 .disclaimer {
   text-align: center;
   font-size: 10px;
-  color: #8696a0;
+  color: var(--color-text-muted);
   margin-top: 6px;
 }
 
@@ -292,7 +388,7 @@ body {
 }
 
 .crisis-modal {
-  background: #fff;
+  background: var(--color-surface);
   border-radius: 12px;
   padding: 28px 24px;
   max-width: 400px;
@@ -314,12 +410,13 @@ body {
 }
 
 .crisis-header h2 {
-  color: #1f2c34;
+  font-family: var(--font-display);
+  color: var(--color-text-strong);
   font-size: 22px;
 }
 
 .crisis-message {
-  color: #54656f;
+  color: var(--color-text-secondary);
   font-size: 14px;
   line-height: 1.5;
   margin-bottom: 20px;
@@ -337,7 +434,7 @@ body {
   flex-direction: column;
   align-items: center;
   padding: 14px;
-  background: #f0f2f5;
+  background: var(--color-surface-muted);
   border-radius: 8px;
   text-decoration: none;
   color: inherit;
@@ -345,33 +442,33 @@ body {
 }
 
 .crisis-contact:hover {
-  background: #e4e6eb;
+  background: var(--color-surface-muted-hover);
 }
 
 .contact-name {
   font-weight: 600;
   font-size: 15px;
-  color: #1f2c34;
+  color: var(--color-text-strong);
 }
 
 .contact-number {
   font-size: 20px;
   font-weight: 700;
-  color: #00a884;
+  color: var(--color-primary);
   margin: 4px 0;
 }
 
 .contact-desc {
   font-size: 12px;
-  color: #8696a0;
+  color: var(--color-text-muted);
 }
 
 .crisis-close {
   padding: 10px 32px;
   border: none;
   border-radius: 24px;
-  background: #00a884;
-  color: #fff;
+  background: var(--color-primary);
+  color: var(--color-text-on-primary);
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
@@ -379,7 +476,7 @@ body {
 }
 
 .crisis-close:hover {
-  background: #008f72;
+  background: var(--color-primary-hover);
 }
 
 /* Lock Screen */
@@ -388,7 +485,7 @@ body {
   max-width: 500px;
   height: 100vh;
   max-height: 700px;
-  background: #111b21;
+  background: var(--color-backdrop);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -403,31 +500,47 @@ body {
 }
 
 .lock-card {
-  background: #1f2c34;
+  background: var(--color-surface-dark);
   border-radius: 16px;
   padding: 40px 32px;
   width: 90%;
   max-width: 400px;
   text-align: center;
-  color: #fff;
+  color: var(--color-text-on-primary);
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4);
 }
 
+/* Emoji icons that are semantic rather than brand (e.g. ✉️ on the
+   confirm-your-email step). */
 .lock-icon {
   font-size: 48px;
   margin-bottom: 16px;
 }
 
+/* The brand mark on the auth screen — the same source image as the header
+   avatar, clipped to a circle, with --brand-gradient beneath as the
+   image-load fallback. */
+.lock-logo {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 16px;
+  border-radius: 50%;
+  background-image: url("/icon-192.png"), var(--brand-gradient);
+  background-size: cover;
+  background-position: center;
+}
+
 .lock-title {
+  font-family: var(--font-display);
   font-size: 22px;
   font-weight: 600;
   margin-bottom: 8px;
-  color: #e9edef;
+  color: var(--color-text-on-dark);
 }
 
 .lock-subtitle {
   font-size: 13px;
-  color: #8696a0;
+  color: var(--color-text-muted-on-dark);
   line-height: 1.5;
   margin-bottom: 24px;
 }
@@ -441,25 +554,27 @@ body {
 
 .lock-fields input {
   padding: 12px 16px;
-  border: 2px solid #2a3942;
+  border: 2px solid var(--color-surface-dark-raised);
   border-radius: 8px;
   font-size: 15px;
-  background: #2a3942;
-  color: #e9edef;
+  background: var(--color-surface-dark-raised);
+  color: var(--color-text-on-dark);
   outline: none;
   transition: border-color 0.2s;
 }
 
+/* Accent, not primary: the interactive teal only reaches 2.28:1 against the
+   raised dark field, which is too faint to read as a focus state. */
 .lock-fields input:focus {
-  border-color: #00a884;
+  border-color: var(--color-accent);
 }
 
 .lock-fields input::placeholder {
-  color: #667781;
+  color: var(--color-text-faint);
 }
 
 .lock-error {
-  color: #ef5350;
+  color: var(--color-danger);
   font-size: 13px;
   margin-bottom: 12px;
 }
@@ -479,13 +594,13 @@ body {
 }
 
 .lock-btn.primary {
-  background: #00a884;
-  color: #fff;
+  background: var(--color-primary);
+  color: var(--color-text-on-primary);
   width: 100%;
 }
 
 .lock-btn.primary:hover:not(:disabled) {
-  background: #008f72;
+  background: var(--color-primary-hover);
 }
 
 .lock-btn:disabled {
@@ -502,7 +617,7 @@ body {
 .lock-link {
   background: none;
   border: none;
-  color: #8696a0;
+  color: var(--color-text-muted-on-dark);
   font-size: 12px;
   cursor: pointer;
   text-decoration: underline;
@@ -510,33 +625,33 @@ body {
 }
 
 .lock-link:hover {
-  color: #e9edef;
+  color: var(--color-text-on-dark);
 }
 
 .lock-link.danger {
-  color: #ef5350;
+  color: var(--color-danger);
 }
 
 .lock-link.danger:hover {
-  color: #f44336;
+  color: var(--color-danger-hover);
 }
 
 .lock-info {
   font-size: 11px;
-  color: #667781;
+  color: var(--color-text-faint);
   line-height: 1.5;
 }
 
 /* Distress Scale — Inline Bubble */
 .bubble.distress-bubble {
-  background: #f0f2f5;
+  background: var(--color-surface-muted);
   border-top-left-radius: 0;
   padding: 12px 14px;
 }
 
 .distress-label {
   font-size: 13px;
-  color: #54656f;
+  color: var(--color-text-secondary);
   margin-bottom: 10px;
   font-weight: 500;
 }
@@ -554,7 +669,7 @@ body {
   flex-direction: column;
   align-items: center;
   gap: 1px;
-  background: #fff;
+  background: var(--color-surface);
   border: 2px solid transparent;
   border-radius: 10px;
   padding: 6px 5px;
@@ -564,7 +679,7 @@ body {
 }
 
 .distress-btn:hover {
-  border-color: #00a884;
+  border-color: var(--color-primary);
   transform: scale(1.1);
 }
 
@@ -580,14 +695,14 @@ body {
 .distress-number {
   font-size: 10px;
   font-weight: 600;
-  color: #8696a0;
+  color: var(--color-text-muted);
   margin-top: 2px;
 }
 
 .distress-skip {
   background: none;
   border: none;
-  color: #8696a0;
+  color: var(--color-text-muted);
   font-size: 11px;
   cursor: pointer;
   text-decoration: underline;
@@ -598,18 +713,18 @@ body {
 }
 
 .distress-skip:hover {
-  color: #1f2c34;
+  color: var(--color-text-strong);
 }
 
 .bubble.hypno-offer {
-  background: #f0f2f5;
+  background: var(--color-surface-muted);
   border-top-left-radius: 0;
   padding: 10px 12px;
 }
 
 .hypno-start-btn {
-  background: #00a884;
-  color: #fff;
+  background: var(--color-primary);
+  color: var(--color-text-on-primary);
   border: none;
   border-radius: 8px;
   padding: 10px 16px;
@@ -620,7 +735,7 @@ body {
 }
 
 .hypno-start-btn:hover {
-  background: #017561;
+  background: var(--color-primary-active);
 }
 
 /* --- Feedback prompt (shown after 5 sessions) --- */
@@ -636,13 +751,13 @@ body {
 }
 
 .feedback-card {
-  background: #1f2c34;
+  background: var(--color-surface-dark);
   border-radius: 16px;
   padding: 32px 28px;
   width: 100%;
   max-width: 380px;
   text-align: center;
-  color: #e9edef;
+  color: var(--color-text-on-dark);
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
 }
 
@@ -652,6 +767,7 @@ body {
 }
 
 .feedback-title {
+  font-family: var(--font-display);
   font-size: 20px;
   font-weight: 600;
   margin-bottom: 10px;
@@ -659,7 +775,7 @@ body {
 
 .feedback-text {
   font-size: 14px;
-  color: #8696a0;
+  color: var(--color-text-muted-on-dark);
   line-height: 1.5;
   margin-bottom: 24px;
 }
@@ -678,31 +794,31 @@ body {
   font-size: 15px;
   font-weight: 600;
   cursor: pointer;
-  background: #2a3942;
-  color: #e9edef;
+  background: var(--color-surface-dark-raised);
+  color: var(--color-text-on-dark);
   text-decoration: none;
   display: inline-block;
   transition: background 0.2s;
 }
 
 .feedback-btn.primary {
-  background: #00a884;
-  color: #fff;
+  background: var(--color-primary);
+  color: var(--color-text-on-primary);
 }
 
 .feedback-btn.primary:hover {
-  background: #008f72;
+  background: var(--color-primary-hover);
 }
 
 .feedback-link {
   background: none;
   border: none;
-  color: #8696a0;
+  color: var(--color-text-muted-on-dark);
   font-size: 13px;
   cursor: pointer;
 }
 
 .feedback-note {
-  color: #8696a0;
+  color: var(--color-text-muted-on-dark);
   font-size: 13px;
 }

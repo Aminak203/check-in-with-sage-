@@ -125,7 +125,8 @@ export default function ChatWindow({ messages, isLoading, onSend, onLogout, show
   return (
     <div className="chat-window">
       <div className="chat-header">
-        <div className={`avatar ${speaking ? "speaking" : ""}`}>🌿</div>
+        {/* Logo mark — decorative, since the name sits beside it in .header-name. */}
+        <div className={`avatar ${speaking ? "speaking" : ""}`} aria-hidden="true" />
         <div className="header-info">
           <span className="header-name">Sorra</span>
           <span className="header-status">{speaking ? "Speaking..." : "Mental health support"}</span>

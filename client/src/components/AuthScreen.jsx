@@ -64,7 +64,7 @@ export default function AuthScreen({ onAuth }) {
     return (
       <div className="lock-overlay">
         <div className="lock-card">
-          <div className="lock-icon">🌿</div>
+          <div className="lock-logo" aria-hidden="true" />
           <h2 className="lock-title">Setup needed</h2>
           <p className="lock-subtitle">
             Supabase isn't configured yet. Add <code>VITE_SUPABASE_URL</code> and{" "}
@@ -109,7 +109,7 @@ export default function AuthScreen({ onAuth }) {
   return (
     <div className="lock-overlay">
       <div className="lock-card">
-        <div className="lock-icon">🌿</div>
+        <div className="lock-logo" aria-hidden="true" />
         <h2 className="lock-title">
           {signupMode ? "Create your account" : "Welcome back"}
         </h2>
