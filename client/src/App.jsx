@@ -18,7 +18,9 @@ const SESSIONS_BEFORE_FEEDBACK = 5;
 
 // Silence held between relaxation steps, measured from when a step finishes
 // speaking to when the next one is delivered — a short, contemplative gap.
-const HYPNO_SILENCE_MS = 2800;
+// Tune here: the visible gap is this plus the ~200ms the audio queue takes to
+// start the next (already-prefetched) clip.
+const HYPNO_SILENCE_MS = 1200;
 // When muted (no audio to pace off), fall back to an estimated reading time so
 // the steps don't race past. ~2.6 words/sec plus a small buffer.
 const readingMs = (text) =>
@@ -327,13 +329,20 @@ export default function App() {
         appendAssistant("Let's just take a few slow breaths together instead. Breathe in… and out.");
         return;
       }
-      appendAssistant(`Let's begin the ${script.name} exercise. Get comfortable, and just follow along with me.`);
+      // The intro line joins the same audio-paced chain as the steps: we mark it
+      // as the text currently being spoken and start at step -1, so step 0 is
+      // only delivered once this line has actually finished (see setOnItemEnd).
+      // Otherwise step 0 lands on screen while the intro is still revealing
+      // word-by-word, then sits as typing dots for the whole intro.
+      const intro = `Let's begin the ${script.name} exercise. Get comfortable, and just follow along with me.`;
+      currentStepTextRef.current = intro;
+      appendAssistant(intro);
       // Warm the opening step while the "let's begin" line plays, so the trance
       // starts smoothly rather than with an audible synthesis stall.
       if (script.steps[0]) prefetch(script.steps[0].text, { calm: true });
       deliveredStepRef.current = -1;
       setHypnoScript(script);
-      setHypnoStep(0);
+      setHypnoStep(-1);
       setTherapyMode(true);
       hypnoPlayingRef.current = true;
       setHypnoPaused(false);
@@ -400,6 +409,9 @@ export default function App() {
   // so a step's text appears exactly when its turn to be spoken comes.
   useEffect(() => {
     if (!hypnoPlaying || hypnoPaused || !hypnoScript) return;
+    // Step -1 is the intro line, already on screen and speaking. Nothing to
+    // deliver until its audio completes and advances us to step 0.
+    if (hypnoStep < 0) return;
 
     const steps = hypnoScript.steps;
     if (hypnoStep >= steps.length) {
@@ -509,12 +521,23 @@ export default function App() {
         setShowCrisis(true);
       }
 
-      if (data.requestRating) {
+      if (data.userWantsHypno && !data.crisis) {
+        // The user asked for a relaxation outright ("I'm ready", "can we start
+        // the relaxation") — that IS the confirmation, so reveal Begin now
+        // instead of waiting on another yes/no round trip. Also lifts any
+        // earlier decline: they've just asked for it themselves.
+        hypnoDeclinedRef.current = false;
+        awaitingHypnoConfirmRef.current = false;
+        setShowDistressScale(false);
+        setShowHypnoOffer(true);
+      } else if (data.requestRating) {
         // Rating comes first in the triage flow. If the same reply also looks
         // like a relaxation offer, suppress the offer here — it should appear
         // in a later message, after the user has given their rating.
         setShowHypnoOffer(false);
-        setTimeout(() => setShowDistressScale(true), 1000);
+        // Flagged immediately; ChatWindow holds the actual scale back until
+        // Sorra has finished speaking the question that asks for it.
+        setShowDistressScale(true);
       } else if (data.offerHypno && !data.crisis && !hypnoDeclinedRef.current) {
         // Sorra asked whether they'd like a relaxation — wait for their yes/no
         // before revealing the Begin button, rather than surfacing it now.

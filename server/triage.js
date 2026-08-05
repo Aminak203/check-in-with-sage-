@@ -73,21 +73,67 @@ function detectTherapyMode(text) {
   return therapyKeywords.some((keyword) => lower.includes(keyword));
 }
 
-// Detects when Sorra is OFFERING a guided relaxation / hypnotherapy session.
-// When matched, the client surfaces a "Begin" button; pressing it triggers
-// AI script selection + the deterministic runner.
-// Kept deliberately specific so it fires on offers, not general supportive chat.
-const hypnoOfferPatterns = [
-  /relaxation (exercise|session|technique)/i,
-  /breathing exercise/i,
-  /guided (relaxation|breathing|visuali[sz]ation|meditation)/i,
-  /hypnotherapy/i,
-  /(would you like|shall we|want to|do you want).{0,40}(relax|breathe|breathing|calm|unwind|visuali[sz]|safe place|body scan)/i,
-  /(try|do|start|begin).{0,20}(relaxation|breathing exercise|body scan|visuali[sz]ation)/i,
-];
+// ---------------------------------------------------------------------------
+// Guided-session detection
+// ---------------------------------------------------------------------------
+// Every name the conversation might give a guided session. Kept in one place
+// because both detectors below need it, and because the previous narrow list was
+// the cause of a real failure: Sorra is told to describe the session plainly and
+// never mention buttons, so she says "a short guided audio" or "the guided
+// session" — neither of which the old patterns knew, so the offer was never
+// surfaced and the user's "I'm ready" went nowhere.
+const SESSION_NOUN =
+  /(relaxation|guided (?:audio|session|recording|exercise|track|practice)|hypnotherapy|hypnosis|breathing exercise|body scan|visuali[sz]ation|guided meditation)/i;
 
+// Phrases that make a mention an invitation or an availability signal rather
+// than a passing reference. Deliberately generous: "if you'd like", "whenever
+// you're ready" and "you can start" are all offers in practice.
+const INVITE =
+  /(would you like|do you want|want to|wanna|shall we|shall i|are you up for|are you ready|if you'?d like|if you want|when(?:ever)? you'?re ready|feel free|you can (?:start|begin|try|do)|let'?s|we could|we can|i can (?:offer|start|guide)|ready to (?:start|begin|try))/i;
+
+// Detects when Sorra is OFFERING a guided relaxation / hypnotherapy session.
+// Requires both a session mention AND an invitation, so ordinary supportive chat
+// and after-the-fact references ("how did the relaxation feel?") don't fire it.
+// A match only arms the yes/no gate on the client — the Begin button still waits
+// for the user's answer — so erring generous here is cheap.
 function detectHypnoOffer(text) {
-  return hypnoOfferPatterns.some((pattern) => pattern.test(text));
+  const t = text || "";
+  return SESSION_NOUN.test(t) && INVITE.test(t);
 }
 
-module.exports = { detectCrisis, detectRatingRequest, detectTherapyMode, detectHypnoOffer };
+// The user asking for a session THEMSELVES — the path that was missing entirely.
+// Detection used to run only against Sorra's wording, so a user who said "I'm
+// ready" or "can we start the relaxation" had no way to reach the Begin button.
+//
+// A named request ("start the relaxation") stands on its own. A bare "yes" or
+// "I'm ready" is only treated as a request when a session has actually been
+// discussed recently, so an affirmative about something else can't trigger it.
+const NAMED_REQUEST = new RegExp(
+  `(start|begin|do|try|have|play|go with|ready for|up for|want|like)\\s+(?:the\\s+|a\\s+|that\\s+|it\\s+|to\\s+)*${SESSION_NOUN.source}`,
+  "i"
+);
+
+const BARE_AFFIRMATION =
+  /^\s*(yes|yeah|yep|yup|sure|ok|okay|alright|please|ready|i'?m ready|let'?s (?:do it|go|start|begin)|go ahead|do it|start|begin|sounds good|i'?d like (?:to|that)|why not|i'?m in)\b/i;
+
+// Did a guided session come up in the last few turns? Bounds how long a bare
+// "yes" stays attached to an earlier offer.
+function sessionRecentlyDiscussed(messages, lookback = 6) {
+  return (messages || [])
+    .slice(-lookback)
+    .some((m) => m && m.content && SESSION_NOUN.test(m.content));
+}
+
+function detectHypnoRequest(userText, messages) {
+  const t = userText || "";
+  if (NAMED_REQUEST.test(t)) return true;
+  return BARE_AFFIRMATION.test(t) && sessionRecentlyDiscussed(messages);
+}
+
+module.exports = {
+  detectCrisis,
+  detectRatingRequest,
+  detectTherapyMode,
+  detectHypnoOffer,
+  detectHypnoRequest,
+};

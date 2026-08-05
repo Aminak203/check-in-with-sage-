@@ -1,8 +1,14 @@
 const express = require("express");
 const cors = require("cors");
-const { chatWithSorra, summarizeSession, openingGreeting } = require("./llm");
+const { chatWithSorra, summarizeSession, openingGreeting, stripOfferMarker } = require("./llm");
 const { synthesize } = require("./tts");
-const { detectCrisis, detectRatingRequest, detectTherapyMode, detectHypnoOffer } = require("./triage");
+const {
+  detectCrisis,
+  detectRatingRequest,
+  detectTherapyMode,
+  detectHypnoOffer,
+  detectHypnoRequest,
+} = require("./triage");
 const { selectScript, listScripts } = require("./scripts");
 require("dotenv").config();
 
@@ -23,17 +29,32 @@ app.post("/api/chat", async (req, res) => {
     const userMessage = messages[messages.length - 1]?.content || "";
     const isCrisis = detectCrisis(userMessage);
 
-    const reply = await chatWithSorra(messages, {
+    const rawReply = await chatWithSorra(messages, {
       firstSession: !!firstSession,
       memory: Array.isArray(memory) ? memory : [],
     });
 
+    // Sorra marks her own invitations; the marker is removed before the reply is
+    // ever shown or voiced. Falling back to keyword detection covers the turns
+    // where the model forgets to emit it.
+    const { text: reply, offered } = stripOfferMarker(rawReply);
+
     const isRatingRequest = detectRatingRequest(reply);
     const inTherapyMode = detectTherapyMode(reply);
     // Only offer a guided relaxation when it isn't a crisis.
-    const offerHypno = !isCrisis && detectHypnoOffer(reply);
+    const offerHypno = !isCrisis && (offered || detectHypnoOffer(reply));
+    // Separately: did the USER just ask to start one, or say they're ready? That
+    // needs no further confirmation, so the client can surface Begin right away.
+    const userWantsHypno = !isCrisis && detectHypnoRequest(userMessage, messages);
 
-    res.json({ reply, crisis: isCrisis, requestRating: isRatingRequest, therapyMode: inTherapyMode, offerHypno });
+    res.json({
+      reply,
+      crisis: isCrisis,
+      requestRating: isRatingRequest,
+      therapyMode: inTherapyMode,
+      offerHypno,
+      userWantsHypno,
+    });
   } catch (error) {
     console.error("Chat error:", error);
     res.status(500).json({

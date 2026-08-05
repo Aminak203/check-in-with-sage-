@@ -34,9 +34,25 @@ export default function ChatWindow({ messages, isLoading, onSend, onLogout, show
     }
   };
 
+  // Index of the most recent assistant message — used to hold interactive
+  // controls until Sorra has finished speaking the line that introduces them.
+  let lastAssistantIdx = -1;
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i].role === "assistant") {
+      lastAssistantIdx = i;
+      break;
+    }
+  }
+  // Every control Sorra surfaces (the distress scale, the Begin button) waits on
+  // this: it only appears once the line asking for it has been fully spoken — or
+  // immediately when muted, where there's no audio to wait on. Without it a
+  // control can land on screen before its own explanation, leaving the user
+  // staring at a widget with no idea what it's for.
+  const promptSpoken = muted || progress[lastAssistantIdx] >= 1;
+
   useEffect(() => {
     scrollToBottom();
-  }, [messages, isLoading, showDistressScale, showHypnoOffer]);
+  }, [messages, isLoading, showDistressScale, showHypnoOffer, promptSpoken]);
 
   useEffect(() => {
     setOnStateChange((state) => setSpeaking(state));
@@ -109,19 +125,6 @@ export default function ChatWindow({ messages, isLoading, onSend, onLogout, show
     }
   };
 
-  // Index of the most recent assistant message — used to hold the Begin button
-  // until Sorra has finished speaking the line that introduces it.
-  let lastAssistantIdx = -1;
-  for (let i = messages.length - 1; i >= 0; i--) {
-    if (messages[i].role === "assistant") {
-      lastAssistantIdx = i;
-      break;
-    }
-  }
-  // Only surface the Begin button once its introducing line has been fully
-  // spoken (or when muted, where there's no audio to wait on).
-  const offerSpoken = muted || progress[lastAssistantIdx] >= 1;
-
   return (
     <div className="chat-window">
       <div className="chat-header">
@@ -157,6 +160,12 @@ export default function ChatWindow({ messages, isLoading, onSend, onLogout, show
           // Held (typing bubble) until audio starts — derived from render state,
           // not an effect, so a fresh step never flashes its full text.
           const held = spokenAssistant && frac === undefined && i >= lastSpokenIndex.current;
+          if (held && hypnoPlaying) {
+            // Mid-relaxation, hold plain silence rather than bouncing dots — the
+            // gap between steps is deliberate, and a typing indicator there reads
+            // as a stall. The bubble appears when its voice does.
+            return null;
+          }
           if (held) {
             return (
               <div key={i} className="message bot">
@@ -179,10 +188,10 @@ export default function ChatWindow({ messages, isLoading, onSend, onLogout, show
             </div>
           </div>
         )}
-        {showDistressScale && (
+        {showDistressScale && promptSpoken && (
           <DistressScale onSelect={onDistressSelect} onClose={onDistressClose} />
         )}
-        {showHypnoOffer && !hypnoPlaying && offerSpoken && (
+        {showHypnoOffer && !hypnoPlaying && promptSpoken && (
           <div className="message bot">
             <div className="bubble hypno-offer">
               <button className="hypno-start-btn" onClick={onStartHypno}>
